@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { PlusCircle, History, Save, ClipboardList, Clock, User, HardHat, ClipboardCheck, Settings } from 'lucide-react'
+
+import { PlusCircle, History, Save, ClipboardList, Clock, User, HardHat, ClipboardCheck, Settings, Eye } from 'lucide-react'
+
 
 const SECTORS = [
   { id: 'calidad', label: 'Calidad', icon: ClipboardCheck },
@@ -10,11 +12,12 @@ const SECTORS = [
 
 
 
+
 const initialFormState = {
-  codigo: 'INF-D002',
-  revision: '0',
+  codigo: '',
+  revision: '',
   producto: '',
-  fecha: new Date().toISOString().split('T')[0],
+  fecha: '',
   tipoPrueba: '',
   categoria: '', // MP, SE, PT, ME
   justificacion: '',
@@ -25,15 +28,26 @@ const initialFormState = {
   responsable: ''
 }
 
+
 const App = () => {
+
   const [activeSector, setActiveSector] = useState('calidad')
   const [activeSubTab, setActiveSubTab] = useState('form')
-  const [records, setRecords] = useState(() => {
-    const saved = localStorage.getItem('regsapp_records_multisector_v2');
-    return saved ? JSON.parse(saved) : [];
-  })
-
+  const [records, setRecords] = useState([]);
+  const [selectedRecord, setSelectedRecord] = useState(null);
   const [formData, setFormData] = useState(initialFormState)
+
+  // Load records from local storage on mount
+  useEffect(() => {
+    const saved = localStorage.getItem('regsapp_records_multisector_v2');
+    if (saved) {
+      try {
+        setRecords(JSON.parse(saved));
+      } catch (e) {
+        console.error("Error loading records", e);
+      }
+    }
+  }, []);
 
   useEffect(() => {
     localStorage.setItem('regsapp_records_multisector_v2', JSON.stringify(records));
@@ -41,25 +55,33 @@ const App = () => {
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    if (!formData.producto || !formData.fecha) return;
-
     const newRecord = {
-      id: Date.now(),
-      sectorId: activeSector,
       ...formData,
-      createdAt: new Date().toLocaleString()
+      id: Date.now(),
+      created: new Date().toLocaleString(),
+      sector: activeSector
     };
-
-    setRecords([newRecord, ...records]);
+    
+    const updatedRecords = [newRecord, ...records];
+    setRecords(updatedRecords);
+    localStorage.setItem('regsapp_records_multisector_v2', JSON.stringify(updatedRecords));
     setFormData(initialFormState);
     setActiveSubTab('history');
   }
 
-  const filteredRecords = records.filter(r => r.sectorId === activeSector);
+  const filteredRecords = records.filter(r => r.sector === activeSector);
 
   const handleRevisionChange = (e) => {
     const value = e.target.value.replace(/\D/g, ''); // Only numbers
     setFormData({...formData, revision: value});
+  }
+
+
+  const handleTextAreaChange = (e, field) => {
+    const element = e.target;
+    element.style.height = 'auto';
+    element.style.height = `${element.scrollHeight}px`;
+    setFormData({...formData, [field]: element.value});
   }
 
   return (
@@ -131,6 +153,7 @@ const App = () => {
         {/* Main Content Area */}
         <main className="content">
           <AnimatePresence mode="wait">
+
             {activeSubTab === 'form' ? (
               <motion.div
                 key={`${activeSector}-form`}
@@ -139,8 +162,6 @@ const App = () => {
                 exit={{ opacity: 0, y: -10 }}
                 transition={{ duration: 0.2 }}
               >
-
-
                 <div style={{ marginBottom: '1.5rem' }}>
                   <h2 style={{ fontSize: '1.2rem', textTransform: 'uppercase', color: '#525252', margin: 0 }}>
                     Informe de Pruebas: {SECTORS.find(s => s.id === activeSector).label}
@@ -226,34 +247,36 @@ const App = () => {
                     </div>
                   </div>
 
-
                   <div className="form-group">
                     <label>Justificación</label>
                     <textarea 
-                      className="form-control"
+                      className="form-control auto-expand"
                       placeholder="Motivo de la prueba..."
                       value={formData.justificacion}
-                      onChange={(e) => setFormData({...formData, justificacion: e.target.value})}
+                      onChange={(e) => handleTextAreaChange(e, 'justificacion')}
+                      rows={2}
                     />
                   </div>
 
                   <div className="form-group">
                     <label>Descripción de la prueba</label>
                     <textarea 
-                      className="form-control"
+                      className="form-control auto-expand"
                       placeholder="Procedimiento realizado..."
                       value={formData.descripcionPrueba}
-                      onChange={(e) => setFormData({...formData, descripcionPrueba: e.target.value})}
+                      onChange={(e) => handleTextAreaChange(e, 'descripcionPrueba')}
+                      rows={2}
                     />
                   </div>
 
                   <div className="form-group">
                     <label>Resultados obtenidos</label>
                     <textarea 
-                      className="form-control"
+                      className="form-control auto-expand"
                       placeholder="Hallazgos y datos medidos..."
                       value={formData.resultados}
-                      onChange={(e) => setFormData({...formData, resultados: e.target.value})}
+                      onChange={(e) => handleTextAreaChange(e, 'resultados')}
+                      rows={2}
                     />
                   </div>
 
@@ -276,10 +299,11 @@ const App = () => {
                   <div className="form-group">
                     <label>Observaciones Finales</label>
                     <textarea 
-                      className="form-control"
+                      className="form-control auto-expand"
                       placeholder="Notas adicionales..."
                       value={formData.observaciones}
-                      onChange={(e) => setFormData({...formData, observaciones: e.target.value})}
+                      onChange={(e) => handleTextAreaChange(e, 'observaciones')}
+                      rows={2}
                     />
                   </div>
 
@@ -294,12 +318,114 @@ const App = () => {
                     />
                   </div>
 
-
                   <button type="submit" className="submit-btn highlight">
                     <Save size={18} />
                     <span>Guardar Informe</span>
                   </button>
                 </form>
+              </motion.div>
+            ) : selectedRecord ? (
+              <motion.div
+                key="detail-view"
+                initial={{ opacity: 0, scale: 0.98 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.98 }}
+                className="report-detail-container"
+              >
+                <div style={{ marginBottom: '1.5rem', display: 'flex', justifyContent: 'flex-start' }}>
+                  <button onClick={() => setSelectedRecord(null)} className="back-btn">
+                    ← Volver al historial
+                  </button>
+                </div>
+
+
+                <div className="report-view">
+                  <div className="report-view-header">
+                    <div className="header-main">
+                      <h2>Detalle del Informe</h2>
+                      <span className="badge">{selectedRecord.codigo || 'SIN CODIGO'}</span>
+                    </div>
+                    <div className="header-meta">
+                      <span>Revisión: {selectedRecord.revision || '0'}</span>
+                      <span>{selectedRecord.created}</span>
+                    </div>
+                  </div>
+
+                  <div className="report-view-grid">
+                    <div className="view-group">
+                      <label>Producto</label>
+                      <div className="view-value">{selectedRecord.producto}</div>
+                    </div>
+                    <div className="view-group">
+                      <label>Fecha</label>
+                      <div className="view-value">{selectedRecord.fecha}</div>
+                    </div>
+                  </div>
+
+                  <div className="report-view-grid">
+                    <div className="view-group">
+                      <label>Tipo de Prueba</label>
+                      <div className="view-value">{selectedRecord.tipoPrueba || '-'}</div>
+                    </div>
+                    <div className="view-group">
+                      <label>Categoría</label>
+                      <div className="view-chips">
+                        {['MP', 'SE', 'PT', 'ME'].map(cat => (
+                          <span key={cat} className={`view-chip ${selectedRecord.categoria === cat ? 'active' : ''}`}>
+                            {cat}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="view-group full">
+                    <label>Justificación</label>
+                    <div className="view-value large">{selectedRecord.justificacion}</div>
+                  </div>
+
+                  <div className="view-group full">
+                    <label>Descripción de la prueba</label>
+                    <div className="view-value large">{selectedRecord.descripcionPrueba}</div>
+                  </div>
+
+                  <div className="view-group full">
+                    <label>Resultados obtenidos</label>
+                    <div className="view-value large">{selectedRecord.resultados}</div>
+                  </div>
+
+                  <div className="report-view-grid">
+                    <div className="view-group">
+                      <label>Decisión Final</label>
+                      <div className="view-chips">
+                        {['Aprobado', 'Rechazado', 'Condicional'].map(decision => (
+                          <span key={decision} className={`view-chip ${selectedRecord.decisionFinal === decision ? 'active' : ''}`}>
+                            {decision}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                    <div className="view-group">
+                      <label>Estado</label>
+                      <span className={`badge ${selectedRecord.decisionFinal?.toLowerCase()}`}>
+                        {selectedRecord.decisionFinal}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="view-group full">
+                    <label>Observaciones Finales</label>
+                    <div className="view-value large">{selectedRecord.observaciones || '-'}</div>
+                  </div>
+
+                  <div className="report-view-footer">
+                    <div className="view-group">
+                      <label>Responsable/s</label>
+                      <div className="view-signature">{selectedRecord.responsable}</div>
+                    </div>
+                  </div>
+                </div>
+
               </motion.div>
             ) : (
               <motion.div
@@ -315,7 +441,12 @@ const App = () => {
                 {filteredRecords.length > 0 ? (
                   <div className="history-list">
                     {filteredRecords.map(record => (
-                      <motion.div key={record.id} className="history-item" layout>
+                      <motion.div 
+                        key={record.id} 
+                        className="history-item clickable" 
+                        layout
+                        onClick={() => setSelectedRecord(record)}
+                      >
                         <div className="item-info">
                           <h3>{record.producto}</h3>
                           <div className="item-meta">
@@ -327,7 +458,7 @@ const App = () => {
                           </div>
                         </div>
                         <div className="item-icon">
-                          <ClipboardList size={20} color="#525252" />
+                          <Eye size={20} color="#525252" />
                         </div>
                       </motion.div>
                     ))}
@@ -352,8 +483,6 @@ const App = () => {
     </>
   )
 }
-
-
 
 
 export default App
