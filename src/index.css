@@ -247,6 +247,116 @@ body {
   gap: 0.4rem;
 }
 
+
+
+
+.form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.5rem;
+}
+
+
+
+.checkbox-group, .decision-group {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.chip-btn, .decision-btn {
+  padding: 0.5rem 1rem;
+  background: #09090b;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.chip-btn:hover, .decision-btn:hover {
+  border-color: #525252;
+  color: #fff;
+}
+
+
+.chip-btn.active, .decision-btn.active {
+  background: #fff;
+  color: #000;
+  border-color: #fff;
+}
+
+
+
+.form-control {
+  width: 100%;
+  padding: 1rem 1.25rem;
+  border-radius: 14px;
+  border: 2px solid var(--border);
+  background: #09090b;
+  color: white;
+  font-family: inherit;
+  font-size: 0.95rem;
+  outline: none;
+  transition: all 0.2s ease;
+}
+
+.form-control:focus {
+  border-color: #ffffff;
+  background: #000000;
+}
+
+textarea.form-control {
+  min-height: 100px;
+  resize: vertical;
+}
+
+.submit-btn.highlight {
+  background: #fff;
+  color: #000;
+  border: none;
+}
+
+
+.submit-btn.highlight:hover {
+  background: #e5e7eb;
+}
+
+.item-meta {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+  flex-wrap: wrap;
+  margin-top: 0.5rem;
+}
+
+.badge {
+  padding: 0.25rem 0.6rem;
+  border-radius: 6px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  background: var(--border);
+  color: var(--text-muted);
+}
+
+.badge.aprobado {
+  background: #14532d;
+  color: #4ade80;
+}
+
+.badge.rechazado {
+  background: #450a0a;
+  color: #f87171;
+}
+
+.badge.condicional {
+  background: #422006;
+  color: #fbbf24;
+}
+
 .empty-state {
   display: flex;
   flex-direction: column;
@@ -257,6 +367,7 @@ body {
   gap: 1.5rem;
   text-align: center;
 }
+
 
 
 .empty-state p {
