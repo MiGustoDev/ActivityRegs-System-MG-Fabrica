@@ -400,14 +400,19 @@ textarea.form-control {
   color: #4ade80;
 }
 
+.badge.en-proceso {
+  background: rgba(251, 146, 60, 0.1);
+  color: #fb923c;
+}
+
 .badge.rechazado {
   background: rgba(239, 68, 68, 0.1);
   color: #f87171;
 }
 
 .badge.condicional {
-  background: rgba(245, 158, 11, 0.1);
-  color: #fbbf24;
+  background: rgba(125, 211, 252, 0.1);
+  color: #7dd3fc;
 }
 
 .empty-state {
@@ -445,12 +450,74 @@ textarea.form-control {
 
 @media (max-width: 640px) {
   #root {
-    padding: 1rem;
+    padding: 1.5rem 1rem;
+    justify-content: flex-start; /* Subimos el contenido al inicio */
   }
 
   .app-container {
-    border-radius: 0;
+    border-radius: 20px;
     max-width: 100%;
+    margin-top: 0; /* Remove top margin to start higher */
+  }
+
+  .content {
+    padding: 1.5rem; /* Menos padding para ganar espacio */
+  }
+
+  .form-grid, .report-view-grid {
+    grid-template-columns: 1fr; /* Una sola columna en móvil */
+    gap: 0.75rem;
+  }
+
+  .nav-tabs {
+    flex-wrap: wrap; /* Para que los sectores no se desborden */
+    gap: 0.25rem;
+  }
+
+  .tab-btn {
+    padding: 0.75rem;
+    font-size: 0.75rem;
+  }
+
+  .title-group h1 {
+    font-size: 2rem;
+  }
+
+  .title-group p {
+    font-size: 0.85rem;
+  }
+
+  .logo-container {
+    position: relative; /* En móvil lo ponemos estático para no tapar contenido */
+    top: 0;
+    left: 0;
+    margin-bottom: 1.5rem;
+    display: flex;
+    justify-content: center;
+  }
+
+  .app-logo {
+    height: 50px;
+  }
+
+  .sub-header {
+    gap: 1.25rem !important; /* Espacio moderado para que no estén pegados */
+    padding: 1rem 0.5rem !important;
+  }
+
+  .sub-header button {
+    font-size: 0.8rem !important; /* Texto un poco más legible */
+    letter-spacing: 0 !important;
+  }
+
+  .submit-btn {
+    padding: 0.8rem 1.5rem !important; /* Más compacto */
+    font-size: 0.8rem !important; /* Un poco más pequeño */
+    letter-spacing: 0.05em !important;
+    white-space: nowrap !important; /* Una sola línea */
+    width: auto !important;
+    min-width: 200px;
+    margin: 1.5rem auto 0 !important;
   }
 }
 

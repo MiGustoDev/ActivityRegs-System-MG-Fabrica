@@ -5,19 +5,20 @@ import { PlusCircle, History, Save, ClipboardList, Clock, User, HardHat, Clipboa
 
 
 const SECTORS = [
-  { id: 'calidad', label: 'Calidad', icon: ClipboardCheck },
-  { id: 'produccion', label: 'Produccion', icon: HardHat },
-  { id: 'mantenimiento', label: 'Mantenimiento', icon: Settings }
+  { id: 'calidad', label: 'Desarrollo', icon: ClipboardCheck },
+  { id: 'produccion', label: 'Produccion', icon: HardHat }
 ];
 
 
 
 
-const initialFormState = {
+const getCurrentDate = () => new Date().toISOString().split('T')[0];
+
+const initialFormState = () => ({
   codigo: '',
   revision: '',
   producto: '',
-  fecha: '',
+  fecha: getCurrentDate(), // Fecha actual por defecto
   tipoPrueba: '',
   categoria: [], // Cambiado a array para multi-seleccion
   justificacion: '',
@@ -26,7 +27,7 @@ const initialFormState = {
   decisionFinal: '', // Aprobado, Rechazado, Condicional
   observaciones: '',
   responsable: ''
-}
+});
 
 
 const App = () => {
@@ -35,7 +36,7 @@ const App = () => {
   const [activeSubTab, setActiveSubTab] = useState('form')
   const [records, setRecords] = useState([]);
   const [selectedRecord, setSelectedRecord] = useState(null);
-  const [formData, setFormData] = useState(initialFormState)
+  const [formData, setFormData] = useState(initialFormState())
 
   // Load records from local storage on mount
   useEffect(() => {
@@ -71,7 +72,7 @@ const App = () => {
     const updatedRecords = [newRecord, ...records];
     setRecords(updatedRecords);
     localStorage.setItem('regsapp_records_multisector_v2', JSON.stringify(updatedRecords));
-    setFormData(initialFormState);
+    setFormData(initialFormState());
     setActiveSubTab('history');
   }
 
@@ -191,7 +192,7 @@ const App = () => {
                 transition={{ duration: 0.2 }}
               >
                 <div style={{ marginBottom: '1.5rem' }}>
-                  <h2 style={{ fontSize: '1.2rem', textTransform: 'uppercase', color: '#525252', margin: 0 }}>
+                  <h2 style={{ fontSize: '0.95rem', textTransform: 'uppercase', color: '#525252', margin: 0, letterSpacing: '-0.01em', whiteSpace: 'nowrap' }}>
                     Informe de Pruebas: {SECTORS.find(s => s.id === activeSector).label}
                   </h2>
                 </div>
@@ -311,7 +312,7 @@ const App = () => {
                   <div className="form-group">
                     <label>Decisión Final</label>
                     <div className="decision-group">
-                      {['Aprobado', 'Rechazado', 'Condicional'].map(decision => (
+                      {['Aprobado', 'En Proceso', 'Rechazado', 'Condicional'].map(decision => (
                         <button
                           type="button"
                           key={decision}
@@ -426,7 +427,7 @@ const App = () => {
                     <div className="view-group">
                       <label>Decisión Final</label>
                       <div className="view-chips">
-                        {['Aprobado', 'Rechazado', 'Condicional'].map(decision => (
+                        {['Aprobado', 'En Proceso', 'Rechazado', 'Condicional'].map(decision => (
                           <span key={decision} className={`view-chip ${selectedRecord.decisionFinal === decision ? 'active' : ''}`}>
                             {decision}
                           </span>
@@ -435,7 +436,7 @@ const App = () => {
                     </div>
                     <div className="view-group">
                       <label>Estado</label>
-                      <span className={`badge ${selectedRecord.decisionFinal?.toLowerCase()}`}>
+                      <span className={`badge ${selectedRecord.decisionFinal?.toLowerCase().replace(/\s+/g, '-')}`}>
                         {selectedRecord.decisionFinal}
                       </span>
                     </div>
@@ -463,7 +464,7 @@ const App = () => {
                 exit={{ opacity: 0, y: -10 }}
                 transition={{ duration: 0.2 }}
               >
-                <h2 style={{ fontSize: '1.2rem', marginBottom: '1.5rem', textTransform: 'uppercase', color: '#525252' }}>
+                <h2 style={{ fontSize: '0.95rem', marginBottom: '1.5rem', textTransform: 'uppercase', color: '#525252', letterSpacing: '-0.01em', whiteSpace: 'nowrap' }}>
                   Historial: {SECTORS.find(s => s.id === activeSector).label}
                 </h2>
                 {filteredRecords.length > 0 ? (
@@ -480,7 +481,7 @@ const App = () => {
                           <div className="item-meta">
                             <p><Clock size={12} /> {record.fecha}</p>
                             <p><User size={12} /> {record.responsable}</p>
-                            <span className={`badge ${record.decisionFinal?.toLowerCase()}`}>
+                            <span className={`badge ${record.decisionFinal?.toLowerCase().replace(/\s+/g, '-')}`}>
                               {record.decisionFinal}
                             </span>
                           </div>
