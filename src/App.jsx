@@ -34,27 +34,26 @@ const App = () => {
 
   const [activeSector, setActiveSector] = useState('calidad')
   const [activeSubTab, setActiveSubTab] = useState('form')
-  const [records, setRecords] = useState([]);
-  const [selectedRecord, setSelectedRecord] = useState(null);
-  const [formData, setFormData] = useState(initialFormState())
-
-  // Load records from local storage on mount
-  useEffect(() => {
+  const [records, setRecords] = useState(() => {
     const saved = localStorage.getItem('regsapp_records_multisector_v2');
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
         // Migración simple para registros viejos con categoria string
-        const migrated = parsed.map(r => ({
+        return parsed.map(r => ({
           ...r,
           categoria: Array.isArray(r.categoria) ? r.categoria : (r.categoria ? [r.categoria] : [])
         }));
-        setRecords(migrated);
       } catch (e) {
         console.error("Error loading records", e);
+        return [];
       }
     }
-  }, []);
+    return [];
+  });
+
+  const [selectedRecord, setSelectedRecord] = useState(null);
+  const [formData, setFormData] = useState(initialFormState())
 
   useEffect(() => {
     localStorage.setItem('regsapp_records_multisector_v2', JSON.stringify(records));
@@ -82,6 +81,14 @@ const App = () => {
   const handleRevisionChange = (e) => {
     const value = e.target.value.replace(/\D/g, ''); // Only numbers
     setFormData({...formData, revision: value});
+  }
+
+  const handleCodigoChange = (e) => {
+    let value = e.target.value.toUpperCase();
+    if (value === 'INF' && formData.codigo.toUpperCase() === 'IN') {
+      value = 'INF-';
+    }
+    setFormData({...formData, codigo: value});
   }
 
   const handleCategoryToggle = (cat) => {
@@ -196,7 +203,7 @@ const App = () => {
                         className="form-control"
                         placeholder="INF-00..."
                         value={formData.codigo}
-                        onChange={(e) => setFormData({...formData, codigo: e.target.value.toUpperCase()})}
+                        onChange={handleCodigoChange}
                         required
                       />
                     </div>
