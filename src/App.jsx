@@ -357,9 +357,9 @@ const RegsApp = () => {
                 <div className="sidebar-footer">
                   <div className="status-indicator">
                     <div className="pulse"></div>
-                    <span>SISTEMA ACTIVO</span>
+                    <span>SISTEMAS ACTIVOS</span>
                   </div>
-                  <p>© 2025 MI GUSTO | DEPARTAMENTO DE SISTEMAS</p>
+                  <p>© 2026 MI GUSTO | DEPARTAMENTO DE SISTEMAS</p>
                 </div>
               </motion.div>
 
@@ -1082,7 +1082,7 @@ const RegsApp = () => {
 
           <footer className="footer">
             <p>
-              © Desarrollado por el <strong>Departamento de Sistemas</strong> de Mi Gusto | Todos los derechos reservados.
+              © 2026 Desarrollado por el <strong>Departamento de Sistemas</strong> de Mi Gusto.
             </p>
           </footer>
         </>
