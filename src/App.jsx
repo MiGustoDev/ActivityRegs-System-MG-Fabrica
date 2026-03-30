@@ -1,39 +1,166 @@
 import React, { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
+import { 
+  BrowserRouter as Router, 
+  Routes, 
+  Route, 
+  useNavigate, 
+  useParams, 
+  useLocation, 
+  Link 
+} from 'react-router-dom'
 
-import { PlusCircle, History, Save, ClipboardList, Clock, User, HardHat, ClipboardCheck, Settings, Eye } from 'lucide-react'
+import { 
+  PlusCircle, History, Save, ClipboardList, Clock, User, HardHat, 
+  ClipboardCheck, Settings, Eye, ShieldCheck, Truck, Package, 
+  Utensils, CookingPot, Layers, Puzzle, Droplet, ArrowLeft,
+  ChevronRight, AlertCircle
+} from 'lucide-react'
 
 
 const SECTORS = [
-  { id: 'calidad', label: 'Desarrollo', icon: ClipboardCheck },
-  { id: 'produccion', label: 'Produccion', icon: HardHat }
+  { id: 'desarrollo', label: 'Desarrollo', icon: ClipboardCheck, color: '#3b82f6', description: 'Informes de prueba y recepción de mercaderia' },
+  { id: 'calidad', label: 'Calidad', icon: ShieldCheck, color: '#10b981', description: 'Auditorias y controles de calidad' },
+  { id: 'proveedores', label: 'Proveedores', icon: Truck, color: '#f59e0b', description: 'Gestión y evaluación de proveedores' },
+  { id: 'produccion', label: 'Produccion', icon: HardHat, color: '#ef4444', description: 'Registros de linea y rendimiento' },
+  { id: 'logistica', label: 'Logistica', icon: Package, color: '#8b5cf6', description: 'Control de despacho y flota' },
+  { id: 'mantenimiento', label: 'Mantenimiento', icon: Settings, color: '#6b7280', description: 'Preventivos y correctivos de planta' },
+  { id: 'mesa-carnes', label: 'Mesa de Carnes', icon: Utensils, color: '#ec4899', description: 'Control de lotes y desposte' },
+  { id: 'cocina', label: 'Cocina', icon: CookingPot, color: '#f97316', description: 'Elaboración y planillas térmicas' },
+  { id: 'picadillo', label: 'Picadillo', icon: Layers, color: '#06b6d4', description: 'Mezcla y balance de ingredientes' },
+  { id: 'armado', label: 'Armado', icon: Puzzle, color: '#84cc16', description: 'Ensamble y finalización de producto' },
+  { id: 'salsas', label: 'Salsas', icon: Droplet, color: '#0ea5e9', description: 'Dosificación y control de mezclas' },
 ];
 
 
 
 
+const getFormattedToday = () => {
+  const d = new Date();
+  const day = String(d.getDate()).padStart(2, '0');
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const year = d.getFullYear();
+  return `${day}/${month}/${year}`;
+};
+
 const getCurrentDate = () => new Date().toISOString().split('T')[0];
+
+const formatInputDate = (dateStr) => {
+  if (!dateStr) return '';
+  // If it's already DD/MM/YYYY (detecting leading day/month)
+  if (dateStr.includes('/')) {
+    const parts = dateStr.split('/');
+    if (parts[0].length === 2 && parts[1].length === 2 && parts[2].length === 4) return dateStr;
+    // Attempt fallback for YYYY/MM/DD if browser is weird
+    if (parts[0].length === 4) return `${parts[2]}/${parts[1]}/${parts[0]}`;
+  }
+  // Try to parse YYYY-MM-DD
+  const matches = dateStr.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (matches) return `${matches[3]}/${matches[2]}/${matches[1]}`;
+  
+  return dateStr;
+};
+
+const handleDateMask = (val, prevVal = '') => {
+  if (val.length < prevVal.length) return val; // Support deletion
+  
+  // Remove non-numeric
+  let numeric = val.replace(/\D/g, '');
+  if (numeric.length > 8) numeric = numeric.slice(0, 8);
+  
+  let formatted = '';
+  if (numeric.length > 0) {
+    formatted = numeric.slice(0, 2);
+    if (numeric.length > 2) {
+      formatted += '/' + numeric.slice(2, 4);
+      if (numeric.length > 4) {
+        formatted += '/' + numeric.slice(4, 8);
+      }
+    }
+  }
+  return formatted;
+};
+
+const handleDateTimeMask = (val, prevVal = '') => {
+  if (val.length < prevVal.length) return val; // Support deletion
+  
+  // Remove non-numeric
+  let numeric = val.replace(/\D/g, '');
+  if (numeric.length > 12) numeric = numeric.slice(0, 12);
+  
+  let formatted = '';
+  if (numeric.length > 0) {
+    formatted = numeric.slice(0, 2);
+    if (numeric.length > 2) {
+      formatted += '/' + numeric.slice(2, 4);
+      if (numeric.length > 4) {
+        formatted += '/' + numeric.slice(4, 8);
+        if (numeric.length > 8) {
+          formatted += ' ' + numeric.slice(8, 10);
+          if (numeric.length > 10) {
+            formatted += ':' + numeric.slice(10, 12);
+          }
+        }
+      }
+    }
+  }
+  return formatted;
+};
+
+const getCurrentTimestamp = () => {
+  const d = new Date();
+  const day = String(d.getDate()).padStart(2, '0');
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const year = d.getFullYear();
+  const hours = String(d.getHours()).padStart(2, '0');
+  const minutes = String(d.getMinutes()).padStart(2, '0');
+  return `${day}/${month}/${year} ${hours}:${minutes}`;
+}
 
 const initialFormState = () => ({
   codigo: '',
   revision: '',
   producto: '',
-  fecha: getCurrentDate(), // Fecha actual por defecto
+  fecha: getFormattedToday(),
   tipoPrueba: '',
-  categoria: [], // Cambiado a array para multi-seleccion
+  categoria: [],
   justificacion: '',
   descripcionPrueba: '',
   resultados: '',
-  decisionFinal: '', // Aprobado, Rechazado, Condicional
+  decisionFinal: '',
   observaciones: '',
   responsable: ''
 });
 
+const initialMaterialsForm = () => ({
+  proveedor: '',
+  grupoInsumos: '',
+  insumo: '',
+  lotes: ['', '', '', '', ''],
+  vencimientos: ['', '', '', '', ''],
+  fechaIngreso: getFormattedToday(),
+  ingresadoPor: '',
+  controlCamionLimpio: null,
+  controlRefrigerado: null,
+  controlTipoAlimento: '',
+  temperatura: '',
+  controlEnvaseIntegro: null,
+  controlSinOlores: null,
+  controlProtocoloCalidad: null,
+  controlAptoIngreso: null,
+  registroTimestamp: getCurrentTimestamp(),
+  firmaResponsable: ''
+});
 
-const App = () => {
 
-  const [activeSector, setActiveSector] = useState('calidad')
+const RegsApp = () => {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const { sectorId } = useParams();
   const [activeSubTab, setActiveSubTab] = useState('form')
+  
+  const activeSector = sectorId || null;
+  const isMenuView = location.pathname === '/';
   const [records, setRecords] = useState(() => {
     const saved = localStorage.getItem('regsapp_records_multisector_v2');
     if (saved) {
@@ -53,7 +180,9 @@ const App = () => {
   });
 
   const [selectedRecord, setSelectedRecord] = useState(null);
-  const [formData, setFormData] = useState(initialFormState())
+  const [formData, setFormData] = useState(initialFormState());
+  const [materialsData, setMaterialsData] = useState(initialMaterialsForm());
+  const [confirmModal, setConfirmModal] = useState({ show: false, action: null, title: '' });
 
   useEffect(() => {
     localStorage.setItem('regsapp_records_multisector_v2', JSON.stringify(records));
@@ -61,22 +190,58 @@ const App = () => {
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    const newRecord = {
-      ...formData,
-      id: Date.now(),
-      created: new Date().toLocaleString(),
-      sector: activeSector
-    };
-    
-    const updatedRecords = [newRecord, ...records];
-    setRecords(updatedRecords);
-    localStorage.setItem('regsapp_records_multisector_v2', JSON.stringify(updatedRecords));
-    setFormData(initialFormState());
-    setSelectedRecord(null);
-    setActiveSubTab('history');
+    setConfirmModal({
+      show: true,
+      title: '¿Confirmar guardado de informe?',
+      action: () => {
+        const newRecord = {
+          ...formData,
+          id: Date.now(),
+          type: 'report',
+          fecha: formatInputDate(formData.fecha),
+          created: getCurrentTimestamp(),
+          sector: activeSector
+        };
+        
+        const updatedRecords = [newRecord, ...records];
+        setRecords(updatedRecords);
+        localStorage.setItem('regsapp_records_multisector_v2', JSON.stringify(updatedRecords));
+        setFormData(initialFormState());
+        setSelectedRecord(null);
+        setActiveSubTab('history');
+        setConfirmModal({ show: false, action: null, title: '' });
+      }
+    });
+  }
+
+  const handleMaterialsSubmit = (e) => {
+    e.preventDefault();
+    setConfirmModal({
+      show: true,
+      title: '¿Confirmar registro de ingreso?',
+      action: () => {
+        const newRecord = {
+          ...materialsData,
+          id: Date.now(),
+          type: 'material',
+          producto: materialsData.insumo,
+          fechaIngreso: formatInputDate(materialsData.fechaIngreso),
+          created: materialsData.registroTimestamp,
+          sector: activeSector
+        };
+
+        const updatedRecords = [newRecord, ...records];
+        setRecords(updatedRecords);
+        localStorage.setItem('regsapp_records_multisector_v2', JSON.stringify(updatedRecords));
+        setMaterialsData(initialMaterialsForm());
+        setActiveSubTab('history');
+        setConfirmModal({ show: false, action: null, title: '' });
+      }
+    });
   }
 
   const filteredRecords = records.filter(r => r.sector === activeSector);
+  
 
   const handleRevisionChange = (e) => {
     const value = e.target.value.replace(/\D/g, ''); // Only numbers
@@ -112,64 +277,130 @@ const App = () => {
 
   return (
     <>
-      <div className="logo-container">
-        <img src="/Logo Mi Gusto 2025.png" alt="Mi Gusto Logo" className="app-logo" />
+      <Routes>
+      <Route path="/" element={
+      <div className="landing-page-enterprise">
+        <div className="enterprise-bg-glow"></div>
+        
+        <div className="enterprise-content">
+          <motion.div 
+            initial={{ opacity: 0, x: -30 }}
+            animate={{ opacity: 1, x: 0 }}
+            className="enterprise-sidebar"
+          >
+            <div className="sidebar-brand">
+                <img src={`${import.meta.env.BASE_URL}Logo Mi Gusto 2025.png`} alt="Mi Gusto" className="brand-logo" />
+              <div className="brand-divider"></div>
+              <div className="brand-text">
+                <h3>Módulos de información</h3>
+              </div>
+            </div>
+            
+            <div className="sidebar-info">
+              <h1>Centro de Operaciones</h1>
+              <p>Seleccione la unidad de negocio para iniciar la carga de informes de cumplimiento y operativa diaria.</p>
+            </div>
+
+            <div className="sidebar-footer">
+              <div className="status-indicator">
+                <div className="pulse"></div>
+                <span>SISTEMA ACTIVO</span>
+              </div>
+              <p>© 2025 MI GUSTO | DEPARTAMENTO DE SISTEMAS</p>
+            </div>
+          </motion.div>
+
+          <div className="enterprise-grid-container">
+            <div className="sector-bento-grid">
+              {SECTORS.map((sector, index) => (
+                <motion.button
+                  key={sector.id}
+                  className="sector-tile"
+                  initial={{ opacity: 0, scale: 0.9 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ delay: index * 0.04 }}
+                  whileHover={{ 
+                    y: -8,
+                    backgroundColor: 'rgba(255, 255, 255, 0.04)',
+                    transition: { duration: 0.2 } 
+                  }}
+                  whileTap={{ scale: 0.98 }}
+                  onClick={() => {
+                    setActiveSubTab('form');
+                    navigate(`/${sector.id}`);
+                  }}
+                  style={{ '--sector-color': sector.color }}
+                >
+                  <div className="tile-glow"></div>
+                  <div className="tile-icon-box">
+                    <sector.icon size={26} />
+                  </div>
+                  <div className="tile-body">
+                    <span className="tile-label">{sector.label}</span>
+                    <div className="tile-action">
+                      <span>{sector.description}</span>
+                      <ChevronRight size={14} />
+                    </div>
+                  </div>
+                </motion.button>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+      } />
+
+      <Route path="/:sectorId" element={
+        <>
+      <div className="logo-container clickable" onClick={() => navigate('/')} style={{ pointerEvents: 'auto' }}>
+        <img src={`${import.meta.env.BASE_URL}Logo Mi Gusto 2025.png`} alt="Mi Gusto Logo" className="app-logo" />
       </div>
 
       <div className="app-container">
 
         {/* Header & Main Tabs (Sectors) */}
         <header className="header">
-          <div className="title-group">
-            <h1>Registros</h1>
-            <p>Sistema de registro de actividades en fabrica</p>
+          <div className="header-top">
+            <button className="back-to-menu" onClick={() => navigate('/')}>
+              <ArrowLeft size={20} />
+              <span>Volver al Menú</span>
+            </button>
+            <div className="title-group-piola">
+              <div className="sector-badge" style={{ backgroundColor: SECTORS.find(s => s.id === activeSector)?.color }}>
+                {(() => {
+                  const Icon = SECTORS.find(s => s.id === activeSector)?.icon;
+                  return Icon ? <Icon size={20} color="#000" /> : null;
+                })()}
+              </div>
+              <div className="titles">
+                <h1 style={{ '--accent': SECTORS.find(s => s.id === activeSector)?.color }}>
+                  {SECTORS.find(s => s.id === activeSector)?.label}
+                </h1>
+                <div className="subtitle">GESTIÓN DE INFORMACIÓN OPERATIVA</div>
+              </div>
+            </div>
+            <div style={{ width: '120px' }} /> {/* Spacer */}
           </div>
 
-          <nav className="nav-tabs">
-            {SECTORS.map(sector => (
-              <button 
-                key={sector.id}
-                className={`tab-btn ${activeSector === sector.id ? 'active' : ''}`}
-                onClick={() => {
-                  setActiveSector(sector.id);
-                  setActiveSubTab('form'); 
-                  setSelectedRecord(null);
-                }}
-                style={{ position: 'relative' }}
-              >
-                {activeSector === sector.id && (
-                  <motion.div
-                    layoutId="active-tab"
-                    className="active-tab-bg"
-                    initial={false}
-                    transition={{ type: "spring", stiffness: 500, damping: 35 }}
-                  />
-                )}
-                <span style={{ position: 'relative', zIndex: 1, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                  <sector.icon size={18} />
-                  <span>{sector.label}</span>
-                </span>
-              </button>
-            ))}
-          </nav>
+          <div style={{ height: '1rem' }} /> {/* Espaciador */}
         </header>
 
         {/* Sub-Navigation for Registro/Historial */}
         <div className="sub-header-nav">
           <button 
-            onClick={() => {
-              setActiveSubTab('form');
-              setSelectedRecord(null);
-            }}
+            onClick={() => { setActiveSubTab('form'); setSelectedRecord(null); }}
             className={`sub-tab-btn ${activeSubTab === 'form' ? 'active' : ''}`}
           >
             Informe de pruebas
           </button>
           <button 
-            onClick={() => {
-              setActiveSubTab('history');
-              setSelectedRecord(null);
-            }}
+            onClick={() => { setActiveSubTab('materials'); setSelectedRecord(null); }}
+            className={`sub-tab-btn ${activeSubTab === 'materials' ? 'active' : ''}`}
+          >
+            Ingreso de materiales a planta
+          </button>
+          <button 
+            onClick={() => { setActiveSubTab('history'); setSelectedRecord(null); }}
             className={`sub-tab-btn ${activeSubTab === 'history' ? 'active' : ''}`}
           >
             Ver Historial
@@ -190,7 +421,7 @@ const App = () => {
               >
                 <div className="section-title-container">
                   <h2 className="section-title">
-                    Informe de Pruebas: {SECTORS.find(s => s.id === activeSector).label}
+                    Informe de Pruebas: {SECTORS.find(s => s.id === activeSector)?.label || 'Sector'}
                   </h2>
                 </div>
 
@@ -235,10 +466,12 @@ const App = () => {
                     <div className="form-group">
                       <label>Fecha</label>
                       <input 
-                        type="date" 
+                        type="text" 
                         className="form-control"
+                        placeholder="DD/MM/YYYY"
+                        maxLength={10}
                         value={formData.fecha}
-                        onChange={(e) => setFormData({...formData, fecha: e.target.value})}
+                        onChange={(e) => setFormData({...formData, fecha: handleDateMask(e.target.value, formData.fecha)})}
                         required
                       />
                     </div>
@@ -350,6 +583,213 @@ const App = () => {
                   </button>
                 </form>
               </motion.div>
+            ) : activeSubTab === 'materials' ? (
+              <motion.div
+                key={`${activeSector}-materials`}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                transition={{ duration: 0.2 }}
+                className="form-section materials-view"
+              >
+                <div className="section-title-container">
+                  <h2 className="section-title">Ingreso de Materiales: {SECTORS.find(s => s.id === activeSector)?.label || 'Sector'}</h2>
+                </div>
+
+                <form className="record-form materials-form" onSubmit={handleMaterialsSubmit}>
+                  
+                  {/* Identificación del Proveedor */}
+                  <div className="form-section-group">
+                    <h3>Identificación y Producto</h3>
+                    <div className="form-grid">
+                      <div className="form-group">
+                        <label>Nombre del Proveedor</label>
+                        <input 
+                          type="text" className="form-control" placeholder="Ej: Arrivata"
+                          value={materialsData.proveedor} onChange={(e) => setMaterialsData({...materialsData, proveedor: e.target.value})}
+                        />
+                      </div>
+                      <div className="form-group">
+                        <label>Grupo de Insumos</label>
+                        <select 
+                          className="form-control"
+                          value={materialsData.grupoInsumos} onChange={(e) => setMaterialsData({...materialsData, grupoInsumos: e.target.value})}
+                        >
+                          <option value="">Seleccione grupo...</option>
+                          <option value="Lácteos">Lácteos</option>
+                          <option value="Cárnicos">Cárnicos</option>
+                          <option value="Secos">Secos</option>
+                          <option value="Vegetales">Vegetales</option>
+                        </select>
+                      </div>
+                      <div className="form-group">
+                        <label>Fecha de Recepción</label>
+                        <input 
+                          type="text" 
+                          className="form-control"
+                          placeholder="DD/MM/YYYY"
+                          maxLength={10}
+                          value={materialsData.fechaIngreso}
+                          onChange={(e) => setMaterialsData({...materialsData, fechaIngreso: handleDateMask(e.target.value, materialsData.fechaIngreso)})}
+                          required
+                        />
+                      </div>
+                    </div>
+                    <div className="form-group full">
+                      <label>Insumo / Producto</label>
+                      <input 
+                        type="text" className="form-control" placeholder="Ej: Stracciatella (estilo italiano)"
+                        value={materialsData.insumo} onChange={(e) => setMaterialsData({...materialsData, insumo: e.target.value})}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Trazabilidad (Lotes y Vencimientos) */}
+                  <div className="form-section-group">
+                    <h3>Trazabilidad (Lotes y Vencimientos)</h3>
+                    <div className="trazabilidad-scroll">
+                      <table className="trazabilidad-table">
+                        <thead>
+                          <tr>
+                            <th>Nº</th>
+                            <th>Identificación Lote</th>
+                            <th>Fecha de Vencimiento</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {[0, 1, 2, 3, 4].map(idx => (
+                            <tr key={idx}>
+                              <td className="row-num">{idx + 1}</td>
+                              <td>
+                                <input 
+                                  type="text" className="form-control compact" placeholder={`Lote ${idx + 1}`}
+                                  value={materialsData.lotes[idx]}
+                                  onChange={(e) => {
+                                    const newLotes = [...materialsData.lotes];
+                                    newLotes[idx] = e.target.value;
+                                    setMaterialsData({...materialsData, lotes: newLotes});
+                                  }}
+                                />
+                              </td>
+                              <td>
+                                <input 
+                                  type="text" className="form-control compact" placeholder="DD/MM/YYYY"
+                                  maxLength={10}
+                                  value={materialsData.vencimientos[idx]}
+                                  onChange={(e) => {
+                                    const newVencs = [...materialsData.vencimientos];
+                                    newVencs[idx] = handleDateMask(e.target.value, materialsData.vencimientos[idx]);
+                                    setMaterialsData({...materialsData, vencimientos: newVencs});
+                                  }}
+                                />
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+
+                  {/* Control de Ingreso (Preguntas de Seguridad) */}
+                  <div className="form-section-group">
+                    <h3>Control de Ingreso y Calidad</h3>
+                    
+                    <div className="quality-checklist">
+                      {[
+                        { id: 'controlCamionLimpio', label: '¿El camión se encuentra limpio y en condiciones?' },
+                        { id: 'controlRefrigerado', label: '¿El producto es refrigerado?' },
+                      ].map(q => (
+                        <div className="quality-item" key={q.id}>
+                          <span className="question">{q.label}</span>
+                          <div className="boolean-toggle">
+                            <button 
+                              type="button" className={`toggle-btn yes ${materialsData[q.id] === true ? 'active' : ''}`}
+                              onClick={() => setMaterialsData({...materialsData, [q.id]: true})}
+                            >SÍ</button>
+                            <button 
+                              type="button" className={`toggle-btn no ${materialsData[q.id] === false ? 'active' : ''}`}
+                              onClick={() => setMaterialsData({...materialsData, [q.id]: false})}
+                            >NO</button>
+                          </div>
+                        </div>
+                      ))}
+
+                      <div className="quality-item special">
+                        <div className="form-group">
+                          <label>Marque según corresponda:</label>
+                          <select 
+                            className="form-control sm"
+                            value={materialsData.controlTipoAlimento} onChange={(e) => setMaterialsData({...materialsData, controlTipoAlimento: e.target.value})}
+                          >
+                            <option value="">Seleccione...</option>
+                            <option value="Quesos">Quesos</option>
+                            <option value="Carne">Carne</option>
+                          </select>
+                        </div>
+                        <div className="form-group inline">
+                          <label>Temperatura observada:</label>
+                          <div className="temp-input-wrapper">
+                            <input 
+                              type="number" step="0.1" className="form-control sm" placeholder="7.6"
+                              value={materialsData.temperatura} onChange={(e) => setMaterialsData({...materialsData, temperatura: e.target.value})}
+                            />
+                            <span className="unit">°C</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {[
+                        { id: 'controlEnvaseIntegro', label: '¿El envase del producto se encuentra íntegro, sin daños?' },
+                        { id: 'controlSinOlores', label: '¿El producto no presenta color ni olores extraños? ¿Está ok?' },
+                        { id: 'controlProtocoloCalidad', label: '¿El proveedor entregó protocolo de calidad o certificado sanitario?' },
+                        { id: 'controlAptoIngreso', label: '¿El insumo se encuentra apto y se ingresa a planta?' },
+                      ].map(q => (
+                        <div className="quality-item" key={q.id}>
+                          <span className="question">{q.label}</span>
+                          <div className="boolean-toggle">
+                            <button 
+                              type="button" className={`toggle-btn yes ${materialsData[q.id] === true ? 'active' : ''}`}
+                              onClick={() => setMaterialsData({...materialsData, [q.id]: true})}
+                            >SÍ</button>
+                            <button 
+                              type="button" className={`toggle-btn no ${materialsData[q.id] === false ? 'active' : ''}`}
+                              onClick={() => setMaterialsData({...materialsData, [q.id]: false})}
+                            >NO</button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Pie de Firma */}
+                  <div className="form-section-group footer-sign mt-4">
+                    <div className="form-grid">
+                      <div className="form-group">
+                        <label>Responsable de Recepción (Firma/Nombre)</label>
+                        <input 
+                          type="text" className="form-control signature-input" placeholder="Nombre completo"
+                          value={materialsData.ingresadoPor} onChange={(e) => setMaterialsData({...materialsData, ingresadoPor: e.target.value})}
+                        />
+                      </div>
+                      <div className="form-group">
+                        <label>Fecha y Hora del Registro</label>
+                        <input 
+                          type="text" 
+                          className="form-control"
+                          placeholder="DD/MM/YYYY HH:MM"
+                          maxLength={16}
+                          value={materialsData.registroTimestamp}
+                          onChange={(e) => setMaterialsData({...materialsData, registroTimestamp: handleDateTimeMask(e.target.value, materialsData.registroTimestamp)})}
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="form-actions mt-4">
+                    <button type="submit" className="submit-btn highlight">FINALIZAR INGRESO</button>
+                  </div>
+                </form>
+              </motion.div>
             ) : selectedRecord ? (
               <motion.div
                 key="detail-view"
@@ -366,90 +806,169 @@ const App = () => {
 
 
                 <div className="report-view">
-                  <div className="report-view-header">
-                    <div className="header-main">
-                      <h2>Detalle del Informe</h2>
-                      <span className="badge">{selectedRecord.codigo || 'SIN CODIGO'}</span>
-                    </div>
-                    <div className="header-meta">
-                      <span>Revisión: {selectedRecord.revision || '0'}</span>
-                      <span>{selectedRecord.created}</span>
-                    </div>
-                  </div>
-
-                  <div className="report-view-grid">
-                    <div className="view-group">
-                      <label>Producto</label>
-                      <div className="view-value">{selectedRecord.producto}</div>
-                    </div>
-                    <div className="view-group">
-                      <label>Fecha</label>
-                      <div className="view-value">{selectedRecord.fecha}</div>
-                    </div>
-                  </div>
-
-                  <div className="report-view-grid">
-                    <div className="view-group">
-                      <label>Tipo de Prueba</label>
-                      <div className="view-value">{selectedRecord.tipoPrueba || '-'}</div>
-                    </div>
-                    <div className="view-group">
-                      <label>Categoría</label>
-                      <div className="view-chips">
-                        {['MP', 'SE', 'PT', 'ME'].map(cat => (
-                          <span key={cat} className={`view-chip ${selectedRecord.categoria?.includes(cat) ? 'active' : ''}`}>
-                            {cat}
-                          </span>
-                        ))}
+                  {selectedRecord.type === 'report' ? (
+                    <>
+                      <div className="report-view-header">
+                        <div className="header-main">
+                          <h2>Detalle del Informe</h2>
+                          <span className="badge">{selectedRecord.codigo || 'SIN CODIGO'}</span>
+                        </div>
+                        <div className="header-meta">
+                          <span>Revisión: {selectedRecord.revision || '0'}</span>
+                          <span>{selectedRecord.created}</span>
+                        </div>
                       </div>
-                    </div>
-                  </div>
 
-                  <div className="view-group full">
-                    <label>Justificación</label>
-                    <div className="view-value large">{selectedRecord.justificacion}</div>
-                  </div>
-
-                  <div className="view-group full">
-                    <label>Descripción de la prueba</label>
-                    <div className="view-value large">{selectedRecord.descripcionPrueba}</div>
-                  </div>
-
-                  <div className="view-group full">
-                    <label>Resultados obtenidos</label>
-                    <div className="view-value large">{selectedRecord.resultados}</div>
-                  </div>
-
-                  <div className="report-view-grid">
-                    <div className="view-group">
-                      <label>Decisión Final</label>
-                      <div className="view-chips">
-                        {['Aprobado', 'En Proceso', 'Rechazado', 'Condicional'].map(decision => (
-                          <span key={decision} className={`view-chip ${selectedRecord.decisionFinal === decision ? 'active' : ''}`}>
-                            {decision}
-                          </span>
-                        ))}
+                      <div className="report-view-grid">
+                        <div className="view-group">
+                          <label>Producto</label>
+                          <div className="view-value">{selectedRecord.producto}</div>
+                        </div>
+                        <div className="view-group">
+                          <label>Fecha</label>
+                          <div className="view-value">{formatInputDate(selectedRecord.fecha)}</div>
+                        </div>
                       </div>
-                    </div>
-                    <div className="view-group">
-                      <label>Estado</label>
-                      <span className={`badge ${selectedRecord.decisionFinal?.toLowerCase().replace(/\s+/g, '-')}`}>
-                        {selectedRecord.decisionFinal}
-                      </span>
-                    </div>
-                  </div>
 
-                  <div className="view-group full">
-                    <label>Observaciones Finales</label>
-                    <div className="view-value large">{selectedRecord.observaciones || '-'}</div>
-                  </div>
+                      <div className="report-view-grid">
+                        <div className="view-group">
+                          <label>Tipo de Prueba</label>
+                          <div className="view-value">{selectedRecord.tipoPrueba || '-'}</div>
+                        </div>
+                        <div className="view-group">
+                          <label>Categoría</label>
+                          <div className="view-chips">
+                            {['MP', 'SE', 'PT', 'ME'].map(cat => (
+                              <span key={cat} className={`view-chip ${selectedRecord.categoria?.includes(cat) ? 'active' : ''}`}>
+                                {cat}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
 
-                  <div className="report-view-footer">
-                    <div className="view-group">
-                      <label>Responsable/s</label>
-                      <div className="view-signature">{selectedRecord.responsable}</div>
-                    </div>
-                  </div>
+                      <div className="view-group full">
+                        <label>Justificación</label>
+                        <div className="view-value large">{selectedRecord.justificacion}</div>
+                      </div>
+
+                      <div className="view-group full">
+                        <label>Descripción de la prueba</label>
+                        <div className="view-value large">{selectedRecord.descripcionPrueba}</div>
+                      </div>
+
+                      <div className="view-group full">
+                        <label>Resultados obtenidos</label>
+                        <div className="view-value large">{selectedRecord.resultados}</div>
+                      </div>
+
+                      <div className="report-view-grid">
+                        <div className="view-group">
+                          <label>Decisión Final</label>
+                          <div className="view-chips">
+                            {['Aprobado', 'En Proceso', 'Rechazado', 'Condicional'].map(decision => (
+                              <span key={decision} className={`view-chip ${selectedRecord.decisionFinal === decision ? 'active' : ''}`}>
+                                {decision}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                        <div className="view-group">
+                          <label>Estado</label>
+                          <span className={`badge ${selectedRecord.decisionFinal?.toLowerCase().replace(/\s+/g, '-')}`}>
+                            {selectedRecord.decisionFinal}
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="view-group full">
+                        <label>Observaciones Finales</label>
+                        <div className="view-value large">{selectedRecord.observaciones || '-'}</div>
+                      </div>
+
+                      <div className="report-view-footer">
+                        <div className="view-group">
+                          <label>Responsable/s</label>
+                          <div className="view-signature">{selectedRecord.responsable}</div>
+                        </div>
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <div className="report-view-header">
+                        <div className="header-main">
+                          <h2>Ingreso de Material</h2>
+                          <div className="type-indicator-bubble">REGISTRO DE PLANTA</div>
+                        </div>
+                        <div className="header-meta">
+                          <span>{selectedRecord.created}</span>
+                        </div>
+                      </div>
+
+                      <div className="report-view-grid">
+                        <div className="view-group">
+                          <label>Proveedor</label>
+                          <div className="view-value">{selectedRecord.proveedor}</div>
+                        </div>
+                        <div className="view-group">
+                          <label>Fecha Ingreso</label>
+                          <div className="view-value">{formatInputDate(selectedRecord.fechaIngreso)}</div>
+                        </div>
+                      </div>
+
+                      <div className="report-view-grid">
+                        <div className="view-group">
+                          <label>Grupo de Insumo</label>
+                          <div className="view-value">{selectedRecord.grupoInsumos}</div>
+                        </div>
+                        <div className="view-group">
+                          <label>Insumo / Producto</label>
+                          <div className="view-value highlight">{selectedRecord.producto}</div>
+                        </div>
+                      </div>
+
+                      <div className="view-group full">
+                        <label>Trazabilidad (Lotes y Vencimientos)</label>
+                        <div className="view-value-table">
+                          <div className="table-header-mini">
+                            <span>LOTE</span>
+                            <span>VENCIMIENTO</span>
+                          </div>
+                          {selectedRecord.lotes.map((lote, i) => lote && (
+                            <div key={i} className="table-row-mini">
+                              <span>{lote}</span>
+                              <span>{formatInputDate(selectedRecord.vencimientos[i]) || '-'}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+
+                      <div className="view-group full">
+                        <label>Controles Realizados</label>
+                        <div className="view-checklist-mini">
+                          <div className={`check-item ${selectedRecord.controlCamionLimpio ? 'ok' : 'fail'}`}>
+                            {selectedRecord.controlCamionLimpio ? '✓' : '✗'} Camión en condiciones
+                          </div>
+                          <div className={`check-item ${selectedRecord.controlEnvaseIntegro ? 'ok' : 'fail'}`}>
+                            {selectedRecord.controlEnvaseIntegro ? '✓' : '✗'} Envase íntegro
+                          </div>
+                          <div className={`check-item ${selectedRecord.controlSinOlores ? 'ok' : 'fail'}`}>
+                            {selectedRecord.controlSinOlores ? '✓' : '✗'} Sin olores extraños
+                          </div>
+                          <div className={`check-item ${selectedRecord.controlAptoIngreso ? 'ok' : 'fail'}`}>
+                            {selectedRecord.controlAptoIngreso ? '✓' : '✗'} APTO PARA INGRESO
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="report-view-footer">
+                        <div className="view-group">
+                          <label>Responsable de Recepción</label>
+                          <div className="view-signature">{selectedRecord.ingresadoPor}</div>
+                        </div>
+                      </div>
+                    </>
+                  )}
                 </div>
 
               </motion.div>
@@ -462,7 +981,7 @@ const App = () => {
                 transition={{ duration: 0.2 }}
               >
                 <h2 className="section-title history">
-                  Historial: {SECTORS.find(s => s.id === activeSector).label}
+                  Historial: {SECTORS.find(s => s.id === activeSector)?.label || 'Sector'}
                 </h2>
                 {filteredRecords.length > 0 ? (
                   <div className="history-list">
@@ -474,13 +993,22 @@ const App = () => {
                         onClick={() => setSelectedRecord(record)}
                       >
                         <div className="item-info">
+                          <div className="item-type-label">
+                            {record.type === 'report' ? '💻 PRUEBA DE DESARROLLO' : '📦 INGRESO DE MATERIAL'}
+                          </div>
                           <h3>{record.producto}</h3>
                           <div className="item-meta">
-                            <p><Clock size={12} /> {record.fecha}</p>
-                            <p><User size={12} /> {record.responsable}</p>
-                            <span className={`badge ${record.decisionFinal?.toLowerCase().replace(/\s+/g, '-')}`}>
-                              {record.decisionFinal}
-                            </span>
+                            <p><Clock size={12} /> {formatInputDate(record.fecha || record.fechaIngreso)}</p>
+                            <p><User size={12} /> {record.responsable || record.ingresadoPor}</p>
+                            {record.type === 'report' ? (
+                              <span className={`badge ${record.decisionFinal?.toLowerCase().replace(/\s+/g, '-')}`}>
+                                {record.decisionFinal}
+                              </span>
+                            ) : (
+                              <span className={`badge ${record.controlAptoIngreso ? 'aprobado' : 'rechazado'}`}>
+                                {record.controlAptoIngreso ? 'APTO' : 'RECHAZADO'}
+                              </span>
+                            )}
                           </div>
                         </div>
                         <div className="item-icon">
@@ -497,18 +1025,68 @@ const App = () => {
                 )}
               </motion.div>
             )}
-          </AnimatePresence>
-        </main>
-      </div>
+              </AnimatePresence>
+            </main>
+          </div>
 
-      <footer className="footer">
-        <p>
-          © Desarrollado por el <strong>Departamento de Sistemas</strong> de Mi Gusto | Todos los derechos reservados.
-        </p>
-      </footer>
+          <footer className="footer">
+            <p>
+              © Desarrollado por el <strong>Departamento de Sistemas</strong> de Mi Gusto | Todos los derechos reservados.
+            </p>
+          </footer>
+        </>
+      } />
+    </Routes>
+
+    <AnimatePresence>
+      {confirmModal.show && (
+        <motion.div 
+          className="modal-overlay"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+        >
+          <motion.div 
+            className="confirm-modal"
+            initial={{ scale: 0.9, opacity: 0, y: 20 }}
+            animate={{ scale: 1, opacity: 1, y: 0 }}
+            exit={{ scale: 0.9, opacity: 0, y: 20 }}
+          >
+            <div className="modal-icon">
+              <AlertCircle size={48} color={SECTORS.find(s => s.id === activeSector)?.color || '#fff'} />
+            </div>
+            <h2>{confirmModal.title}</h2>
+            <p>Esta acción guardará permanentemente los datos en el historial del sector.</p>
+            
+            <div className="modal-actions">
+              <button 
+                className="modal-btn cancel"
+                onClick={() => setConfirmModal({ show: false, action: null, title: '' })}
+              >
+                CANCELAR
+              </button>
+              <button 
+                className="modal-btn confirm"
+                style={{ backgroundColor: SECTORS.find(s => s.id === activeSector)?.color || '#fff' }}
+                onClick={() => confirmModal.action()}
+              >
+                SÍ, CONFIRMAR
+              </button>
+            </div>
+          </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>
     </>
-  )
+  );
 }
-
-
-export default App
+ 
+const App = () => {
+  return (
+    <Router basename="/fabrica">
+      <RegsApp />
+    </Router>
+  );
+};
+ 
+export default App;
