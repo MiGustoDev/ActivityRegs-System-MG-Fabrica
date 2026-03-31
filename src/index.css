@@ -1036,8 +1036,9 @@ textarea.form-control {
 .sub-header-nav {
   display: flex;
   justify-content: center;
-  gap: 3.5rem;
+  gap: 2rem;
   position: relative;
+  flex-wrap: nowrap;
 }
 
 .sub-tab-btn {
@@ -1051,6 +1052,7 @@ textarea.form-control {
   letter-spacing: 0.1em;
   transition: all 0.2s;
   padding: 0.5rem 1rem;
+  white-space: nowrap;
 }
 
 .sub-tab-btn.active {
