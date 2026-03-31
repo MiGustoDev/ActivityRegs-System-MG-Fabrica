@@ -15,7 +15,7 @@ import {
   PlusCircle, History, Save, ClipboardList, Clock, User, HardHat, 
   ClipboardCheck, Settings, Eye, ShieldCheck, Truck, Package, 
   Utensils, CookingPot, Layers, Puzzle, Droplet, ArrowLeft,
-  ChevronRight, AlertCircle
+  ChevronRight, AlertCircle, AlertTriangle
 } from 'lucide-react'
 
 
@@ -206,7 +206,21 @@ const RegsApp = () => {
     responsable: '',
     estado: 'Abierto'
   });
+  const [notifications, setNotifications] = useState(() => {
+    const saved = localStorage.getItem('regsapp_notifications_v1');
+    return saved ? JSON.parse(saved) : [];
+  });
+  const [showNotifications, setShowNotifications] = useState(false);
+
+  useEffect(() => {
+    localStorage.setItem('regsapp_notifications_v1', JSON.stringify(notifications));
+  }, [notifications]);
+
   const [confirmModal, setConfirmModal] = useState({ show: false, action: null, title: '' });
+
+  const markAllAsSeen = () => {
+    setNotifications(notifications.map(n => ({ ...n, seen: true })));
+  };
 
   useEffect(() => {
     localStorage.setItem('regsapp_records_multisector_v2', JSON.stringify(records));
@@ -283,6 +297,21 @@ const RegsApp = () => {
         const updatedRecords = [newRecord, ...records];
         setRecords(updatedRecords);
         localStorage.setItem('regsapp_records_multisector_v2', JSON.stringify(updatedRecords));
+
+        // Create Notification
+        const sectorMatch = SECTORS.find(s => s.label === nonConformityData.areaImplicada);
+        const newNotif = {
+          id: Date.now(),
+          targetSector: sectorMatch ? sectorMatch.id : 'all',
+          targetSectorName: nonConformityData.areaImplicada,
+          message: `NUEVA NO INCONFORMIDAD (${nonConformityData.codigo})`,
+          details: nonConformityData.descripcion,
+          timestamp: getCurrentTimestamp(),
+          seen: false,
+          refId: newRecord.id
+        };
+        setNotifications([newNotif, ...notifications]);
+
         setNonConformityData({
           areaImplicada: '',
           codigo: '',
@@ -327,11 +356,11 @@ const RegsApp = () => {
   }
 
 
-  const handleTextAreaChange = (e, field) => {
+  const handleTextAreaChange = (e, field, setter = setFormData, currentData = formData) => {
     const element = e.target;
     element.style.height = 'auto';
     element.style.height = `${element.scrollHeight}px`;
-    setFormData({...formData, [field]: element.value});
+    setter({...currentData, [field]: element.value});
   }
 
   return (
@@ -475,7 +504,19 @@ const RegsApp = () => {
                 <div className="subtitle">GESTIÓN DE INFORMACIÓN OPERATIVA</div>
               </div>
             </div>
-            <div style={{ width: '120px' }} /> {/* Spacer */}
+            <div style={{ width: '120px', display: 'flex', justifyContent: 'flex-end', alignItems: 'center' }}>
+               <div 
+                 style={{ cursor: 'pointer', position: 'relative', transition: 'all 0.3s' }}
+                 onClick={() => setShowNotifications(!showNotifications)}
+               >
+                 <AlertTriangle 
+                   size={28} 
+                   color={notifications.some(n => !n.seen && (n.targetSector === activeSector || n.targetSector === 'all')) ? '#f97316' : '#525252'} 
+                   className={notifications.some(n => !n.seen && (n.targetSector === activeSector || n.targetSector === 'all')) ? 'pulse-orange' : ''}
+                 />
+                 {notifications.some(n => !n.seen && (n.targetSector === activeSector || n.targetSector === 'all')) && <div className="notif-badge-mini" />}
+               </div>
+            </div>
           </div>
 
           {activeSector === 'calidad' && (
@@ -935,16 +976,9 @@ const RegsApp = () => {
                       required
                     >
                       <option value="">Seleccione área...</option>
-                      <option value="Recepción de MP">Recepción de MP</option>
-                      <option value="Depósito Insumos">Depósito Insumos</option>
-                      <option value="Elaboración">Elaboración</option>
-                      <option value="Armado / Producción">Armado / Producción</option>
-                      <option value="Cocina">Cocina</option>
-                      <option value="Empaque / Fraccionamiento">Empaque / Fraccionamiento</option>
-                      <option value="Depósito de PT">Depósito de PT</option>
-                      <option value="Logística / Expedición">Logística / Expedición</option>
-                      <option value="Mantenimiento">Mantenimiento</option>
-                      <option value="Administración">Administración</option>
+                      {SECTORS.map(s => (
+                        <option key={s.id} value={s.label}>{s.label}</option>
+                      ))}
                     </select>
                   </div>
 
@@ -980,7 +1014,7 @@ const RegsApp = () => {
                       className="form-control auto-expand"
                       placeholder="Detallar lo observado..."
                       value={nonConformityData.descripcion}
-                      onChange={(e) => handleTextAreaChange(e, 'descripcion')}
+                      onChange={(e) => handleTextAreaChange(e, 'descripcion', setNonConformityData, nonConformityData)}
                       rows={3}
                       required
                     />
@@ -992,7 +1026,7 @@ const RegsApp = () => {
                       className="form-control auto-expand"
                       placeholder="Análisis de por qué ocurrió..."
                       value={nonConformityData.causaRaiz}
-                      onChange={(e) => handleTextAreaChange(e, 'causaRaiz')}
+                      onChange={(e) => handleTextAreaChange(e, 'causaRaiz', setNonConformityData, nonConformityData)}
                       rows={2}
                     />
                   </div>
@@ -1003,7 +1037,7 @@ const RegsApp = () => {
                       className="form-control auto-expand"
                       placeholder="¿Qué se hizo para corregirlo?"
                       value={nonConformityData.accionCorrectiva}
-                      onChange={(e) => handleTextAreaChange(e, 'accionCorrectiva')}
+                      onChange={(e) => handleTextAreaChange(e, 'accionCorrectiva', setNonConformityData, nonConformityData)}
                       rows={2}
                     />
                   </div>
@@ -1388,6 +1422,79 @@ const RegsApp = () => {
           </motion.div>
         </motion.div>
       )}
+
+      {/* Panel de Notificaciones (Tipo Carrito) */}
+      <AnimatePresence>
+        {showNotifications && (
+          <>
+            <motion.div 
+              className="notif-overlay"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => { setShowNotifications(false); markAllAsSeen(); }}
+            />
+            <motion.div 
+              className="notif-panel"
+              initial={{ x: '100%' }}
+              animate={{ x: 0 }}
+              exit={{ x: '100%' }}
+              transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+            >
+              <div className="notif-panel-header">
+                <div className="title-row">
+                  <AlertTriangle size={20} color="#facc15" />
+                  <h3>Centro de Alertas</h3>
+                </div>
+                <button className="close-notif" onClick={() => { setShowNotifications(false); markAllAsSeen(); }}>×</button>
+              </div>
+
+              <div className="notif-list">
+                {notifications.length > 0 ? (
+                  notifications.map(notif => (
+                    <div 
+                      key={notif.id} 
+                      className={`notif-item ${!notif.seen ? 'unread' : ''}`}
+                      onClick={() => {
+                        if (notif.refId) {
+                           const record = records.find(r => r.id === notif.refId);
+                           if (record) {
+                             setSelectedRecord(record);
+                             setShowNotifications(false);
+                             setActiveSubTab('history');
+                           }
+                        }
+                      }}
+                    >
+                      <div className="notif-title">
+                        <span className="notif-tag">{notif.targetSectorName}</span>
+                        <span className="notif-time">{notif.timestamp.split(' ')[1]}</span>
+                      </div>
+                      <p className="notif-msg">{notif.message}</p>
+                      <p className="notif-detail">{notif.details?.substring(0, 50)}...</p>
+                    </div>
+                  ))
+                ) : (
+                  <div className="notif-empty">
+                    <ShieldCheck size={40} opacity={0.2} />
+                    <p>No hay alertas pendientes</p>
+                  </div>
+                )}
+              </div>
+
+              <div className="notif-footer">
+                <button 
+                   onClick={() => { setNotifications([]); setShowNotifications(false); }}
+                   className="clear-all"
+                >
+                  Limpiar todas las alertas
+                </button>
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+
     </AnimatePresence>
     </>
   );
