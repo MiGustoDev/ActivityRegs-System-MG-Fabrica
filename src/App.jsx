@@ -15,8 +15,9 @@ import {
   PlusCircle, History, Save, ClipboardList, Clock, User, HardHat, 
   ClipboardCheck, Settings, Eye, ShieldCheck, Truck, Package, 
   Utensils, CookingPot, Layers, Puzzle, Droplet, ArrowLeft,
-  ChevronRight, AlertCircle, AlertTriangle
+  ChevronRight, AlertCircle, AlertTriangle, Download
 } from 'lucide-react'
+import html2pdf from 'html2pdf.js';
 
 
 const SECTORS = [
@@ -250,6 +251,98 @@ const RegsApp = () => {
     window.addEventListener('storage', handleStorageChange);
     return () => window.removeEventListener('storage', handleStorageChange);
   }, []);
+
+  const handleDownloadPDF = (record) => {
+    let typeLabel = "REPORTE";
+    if (record.type === 'report') typeLabel = "Prueba de Desarrollo";
+    else if (record.type === 'material') typeLabel = "Ingreso de Material";
+    else if (record.type === 'non-conformity') typeLabel = "No Conformidad";
+
+    let contentHTML = `
+      <div style="padding: 40px; font-family: sans-serif; color: #333;">
+        <div style="border-bottom: 2px solid #ccc; padding-bottom: 20px; margin-bottom: 30px;">
+          <h1 style="margin: 0; color: #111;">${typeLabel}</h1>
+          <p style="margin: 5px 0 0; color: #666;">ID: ${record.codigo || record.id} | Fecha: ${record.fecha || record.fechaIngreso}</p>
+        </div>
+    `;
+
+    if (record.type === 'report') {
+      contentHTML += `
+        <div style="margin-bottom: 20px;"><strong>Área Responsable:</strong> ${record.sector || '-'}</div>
+        <div style="margin-bottom: 20px;"><strong>Producto/Proyecto:</strong> ${record.producto}</div>
+        <div style="margin-bottom: 20px;"><strong>Categoría:</strong> ${record.categoria?.join(', ') || '-'}</div>
+        <div style="margin-bottom: 20px;"><strong>Justificación:</strong><br/>${record.justificacion || '-'}</div>
+        <div style="margin-bottom: 20px;"><strong>Descripción de la prueba:</strong><br/>${record.descripcionPrueba || '-'}</div>
+        <div style="margin-bottom: 20px;"><strong>Resultados obtenidos:</strong><br/>${record.resultados || '-'}</div>
+        <div style="margin-bottom: 20px;"><strong>Decisión Final:</strong> ${record.decisionFinal || '-'}</div>
+        <div style="margin-bottom: 20px;"><strong>Observaciones Finales:</strong><br/>${record.observaciones || '-'}</div>
+        <div style="margin-top: 40px; padding-top: 20px; border-top: 1px dashed #ccc;">
+          <strong>Firma Responsable:</strong> ${record.responsable || '-'}
+        </div>
+      `;
+    } else if (record.type === 'material') {
+      contentHTML += `
+        <div style="margin-bottom: 20px;"><strong>Proveedor:</strong> ${record.proveedor}</div>
+        <div style="margin-bottom: 20px;"><strong>Grupo de Insumos:</strong> ${record.grupoInsumos}</div>
+        <div style="margin-bottom: 20px;"><strong>Insumo/Producto:</strong> ${record.producto}</div>
+        <div style="margin-bottom: 20px;">
+          <strong>Trazabilidad:</strong><br/>
+          <table style="width: 100%; text-align: left; border-collapse: collapse; margin-top: 10px;">
+            <tr style="border-bottom: 1px solid #ccc;"><th>Lote</th><th>Vencimiento</th></tr>
+            ${(record.lotes || []).map((l, i) => l ? `<tr><td>${l}</td><td>${record.vencimientos[i] || '-'}</td></tr>` : '').join('')}
+          </table>
+        </div>
+        <div style="margin-bottom: 20px;"><strong>Controles:</strong>
+          <ul>
+            <li>Camión en condiciones: ${record.controlCamionLimpio ? 'Sí' : 'No'}</li>
+            <li>Envase íntegro: ${record.controlEnvaseIntegro ? 'Sí' : 'No'}</li>
+            <li>Sin olores extraños: ${record.controlSinOlores ? 'Sí' : 'No'}</li>
+            <li><strong>Apto para Ingreso:</strong> ${record.controlAptoIngreso ? 'SÍ' : 'NO'}</li>
+          </ul>
+        </div>
+        <div style="margin-top: 40px; padding-top: 20px; border-top: 1px dashed #ccc;">
+          <strong>Firma Responsable:</strong> ${record.ingresadoPor || '-'}
+        </div>
+      `;
+    } else {
+      contentHTML += `
+        <div style="margin-bottom: 20px;"><strong>Área Implicada:</strong> ${record.areaImplicada || '-'}</div>
+        <div style="margin-bottom: 20px;"><strong>Estado:</strong> ${record.estado || '-'}</div>
+        <div style="margin-bottom: 20px;"><strong>Descripción del Desvío:</strong><br/>${record.descripcion || '-'}</div>
+        <div style="margin-bottom: 20px;"><strong>Causa Raíz:</strong><br/>${record.causaRaiz || '-'}</div>
+        <div style="margin-bottom: 20px;"><strong>Acción Correctiva:</strong><br/>${record.accionCorrectiva || '-'}</div>
+        <div style="margin-top: 40px; padding-top: 20px; border-top: 1px dashed #ccc;">
+          <strong>Responsable:</strong> ${record.responsable || '-'}
+        </div>
+      `;
+      if (record.respuestas && record.respuestas.length > 0) {
+        contentHTML += `
+          <div style="margin-top: 30px; padding: 20px; background: #f9f9f9; border: 1px solid #eee; border-radius: 8px;">
+            <h3 style="margin-top: 0; font-size: 16px;">Historial de Respuestas</h3>
+            ${record.respuestas.map(r => `
+              <div style="margin-bottom: 15px;">
+                <strong style="color: ${r.sectorColor || '#333'}">${r.sectorName}:</strong> 
+                <span>${r.text}</span>
+                <div style="font-size: 12px; color: #888; margin-top: 4px;">${r.timestamp}</div>
+              </div>
+            `).join('')}
+          </div>
+        `;
+      }
+    }
+
+    contentHTML += `</div>`;
+
+    const opt = {
+      margin:       [0.5, 0.5, 0.5, 0.5],
+      filename:     `Informe_${record.type}_${record.codigo || record.id}.pdf`,
+      image:        { type: 'jpeg', quality: 0.98 },
+      html2canvas:  { scale: 2 },
+      jsPDF:        { unit: 'in', format: 'letter', orientation: 'portrait' }
+    };
+
+    html2pdf().set(opt).from(contentHTML).save();
+  };
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -1566,7 +1659,7 @@ const RegsApp = () => {
                 exit={{ opacity: 0, y: -10 }}
                 transition={{ duration: 0.2 }}
               >
-                <h2 className="section-title history">
+                <h2 className="section-title history" style={{ marginBottom: '1.5rem' }}>
                   Historial: {SECTORS.find(s => s.id === activeSector)?.label || 'Sector'}
                 </h2>
                 {filteredRecords.length > 0 ? (
@@ -1599,8 +1692,48 @@ const RegsApp = () => {
                             )}
                           </div>
                         </div>
-                        <div className="item-icon">
-                          <Eye size={20} color="#525252" />
+                        <div className="item-icon" style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
+                          <div 
+                            style={{ 
+                              padding: '0.4rem', 
+                              borderRadius: '8px', 
+                              background: 'transparent',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              transition: 'all 0.2s'
+                            }}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDownloadPDF(record);
+                            }}
+                            title="Descargar Informe"
+                            onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(255,255,255,0.1)'; e.currentTarget.style.color = '#fff'; }}
+                            onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#a3a3a3'; }}
+                          >
+                            <Download size={18} color="#a3a3a3" />
+                          </div>
+                          <div 
+                            style={{ 
+                              padding: '0.4rem', 
+                              borderRadius: '8px', 
+                              background: 'transparent',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              transition: 'all 0.2s',
+                              cursor: 'pointer'
+                            }}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setSelectedRecord(record);
+                            }}
+                            title="Ver Informe Completo"
+                            onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(255,255,255,0.1)'; e.currentTarget.style.color = '#fff'; }}
+                            onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#a3a3a3'; }}
+                          >
+                            <Eye size={20} color="currentColor" style={{ color: '#a3a3a3', transition: 'color 0.2s' }} />
+                          </div>
                         </div>
                       </motion.div>
                     ))}
