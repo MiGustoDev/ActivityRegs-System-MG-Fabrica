@@ -196,6 +196,15 @@ const RegsApp = () => {
   const [selectedRecord, setSelectedRecord] = useState(null);
   const [formData, setFormData] = useState(initialFormState());
   const [materialsData, setMaterialsData] = useState(initialMaterialsForm());
+  const [nonConformityData, setNonConformityData] = useState({
+    codigo: '',
+    fecha: getFormattedToday(),
+    descripcion: '',
+    causaRaiz: '',
+    accionCorrectiva: '',
+    responsable: '',
+    estado: 'Abierto'
+  });
   const [confirmModal, setConfirmModal] = useState({ show: false, action: null, title: '' });
 
   useEffect(() => {
@@ -248,6 +257,40 @@ const RegsApp = () => {
         setRecords(updatedRecords);
         localStorage.setItem('regsapp_records_multisector_v2', JSON.stringify(updatedRecords));
         setMaterialsData(initialMaterialsForm());
+        setActiveSubTab('history');
+        setConfirmModal({ show: false, action: null, title: '' });
+      }
+    });
+  }
+
+  const handleNonConformitySubmit = (e) => {
+    e.preventDefault();
+    setConfirmModal({
+      show: true,
+      title: '¿Confirmar Informe de No Inconformidad?',
+      action: () => {
+        const newRecord = {
+          ...nonConformityData,
+          id: Date.now(),
+          type: 'non-conformity',
+          producto: 'No Inconformidad - ' + nonConformityData.codigo,
+          fecha: formatInputDate(nonConformityData.fecha),
+          created: getCurrentTimestamp(),
+          sector: activeSector
+        };
+
+        const updatedRecords = [newRecord, ...records];
+        setRecords(updatedRecords);
+        localStorage.setItem('regsapp_records_multisector_v2', JSON.stringify(updatedRecords));
+        setNonConformityData({
+          codigo: '',
+          fecha: getFormattedToday(),
+          descripcion: '',
+          causaRaiz: '',
+          accionCorrectiva: '',
+          responsable: '',
+          estado: 'Abierto'
+        });
         setActiveSubTab('history');
         setConfirmModal({ show: false, action: null, title: '' });
       }
@@ -433,29 +476,56 @@ const RegsApp = () => {
             <div style={{ width: '120px' }} /> {/* Spacer */}
           </div>
 
-          <div style={{ height: '1rem' }} /> {/* Espaciador */}
+          {activeSector === 'calidad' && (
+            <div className="special-history-nav header-action">
+              <button 
+                onClick={() => { setActiveSubTab('history'); setSelectedRecord(null); }}
+                className={`history-top-btn ${activeSubTab === 'history' ? 'active' : ''}`}
+              >
+                <History size={16} />
+                Ver Historial
+              </button>
+            </div>
+          )}
+
+          <div style={{ height: '0.5rem' }} /> {/* Espaciador */}
         </header>
 
         {/* Sub-Navigation for Registro/Historial */}
-        <div className="sub-header-nav">
-          <button 
-            onClick={() => { setActiveSubTab('form'); setSelectedRecord(null); }}
-            className={`sub-tab-btn ${activeSubTab === 'form' ? 'active' : ''}`}
-          >
-            Informe de pruebas
-          </button>
-          <button 
-            onClick={() => { setActiveSubTab('materials'); setSelectedRecord(null); }}
-            className={`sub-tab-btn ${activeSubTab === 'materials' ? 'active' : ''}`}
-          >
-            Ingreso de materiales a planta
-          </button>
-          <button 
-            onClick={() => { setActiveSubTab('history'); setSelectedRecord(null); }}
-            className={`sub-tab-btn ${activeSubTab === 'history' ? 'active' : ''}`}
-          >
-            Ver Historial
-          </button>
+        <div className="sub-header-nav-container">
+          <div className="sub-header-nav">
+            <button 
+              onClick={() => { setActiveSubTab('form'); setSelectedRecord(null); }}
+              className={`sub-tab-btn ${activeSubTab === 'form' ? 'active' : ''}`}
+            >
+              Informe de pruebas
+            </button>
+            
+            {activeSector !== 'calidad' && (
+              <button 
+                onClick={() => { setActiveSubTab('history'); setSelectedRecord(null); }}
+                className={`sub-tab-btn ${activeSubTab === 'history' ? 'active' : ''}`}
+              >
+                Ver Historial
+              </button>
+            )}
+
+            <button 
+              onClick={() => { setActiveSubTab('materials'); setSelectedRecord(null); }}
+              className={`sub-tab-btn ${activeSubTab === 'materials' ? 'active' : ''}`}
+            >
+              Ingreso de materia a planta
+            </button>
+            
+            {activeSector === 'calidad' && (
+              <button 
+                onClick={() => { setActiveSubTab('non-conformity'); setSelectedRecord(null); }}
+                className={`sub-tab-btn ${activeSubTab === 'non-conformity' ? 'active' : ''}`}
+              >
+                Informe de no inconformidad
+              </button>
+            )}
+          </div>
         </div>
 
         {/* Main Content Area */}
@@ -841,6 +911,111 @@ const RegsApp = () => {
                   </div>
                 </form>
               </motion.div>
+            ) : activeSubTab === 'non-conformity' && activeSector === 'calidad' ? (
+              <motion.div
+                key={`${activeSector}-non-conformity`}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                transition={{ duration: 0.2 }}
+              >
+                <div className="section-title-container">
+                  <h2 className="section-title">Informe de No Inconformidad: Calidad</h2>
+                </div>
+
+                <form onSubmit={handleNonConformitySubmit} className="record-form">
+                  <div className="form-grid">
+                    <div className="form-group">
+                      <label>Nº de No Inconformidad</label>
+                      <input 
+                        type="text" 
+                        className="form-control"
+                        placeholder="NC-2026-..."
+                        value={nonConformityData.codigo}
+                        onChange={(e) => setNonConformityData({...nonConformityData, codigo: e.target.value})}
+                        required
+                      />
+                    </div>
+                    <div className="form-group">
+                      <label>Fecha del Hallazgo</label>
+                      <input 
+                        type="text" 
+                        className="form-control"
+                        placeholder="DD/MM/YYYY"
+                        maxLength={10}
+                        value={nonConformityData.fecha}
+                        onChange={(e) => setNonConformityData({...nonConformityData, fecha: handleDateMask(e.target.value, nonConformityData.fecha)})}
+                        required
+                      />
+                    </div>
+                  </div>
+
+                  <div className="form-group">
+                    <label>Descripción del Hallazgo / Desvío</label>
+                    <textarea 
+                      className="form-control auto-expand"
+                      placeholder="Detallar lo observado..."
+                      value={nonConformityData.descripcion}
+                      onChange={(e) => handleTextAreaChange(e, 'descripcion')}
+                      rows={3}
+                      required
+                    />
+                  </div>
+
+                  <div className="form-group">
+                    <label>Causa Raíz Probable</label>
+                    <textarea 
+                      className="form-control auto-expand"
+                      placeholder="Análisis de por qué ocurrió..."
+                      value={nonConformityData.causaRaiz}
+                      onChange={(e) => handleTextAreaChange(e, 'causaRaiz')}
+                      rows={2}
+                    />
+                  </div>
+
+                  <div className="form-group">
+                    <label>Acción Correctiva Inmediata</label>
+                    <textarea 
+                      className="form-control auto-expand"
+                      placeholder="¿Qué se hizo para corregirlo?"
+                      value={nonConformityData.accionCorrectiva}
+                      onChange={(e) => handleTextAreaChange(e, 'accionCorrectiva')}
+                      rows={2}
+                    />
+                  </div>
+
+                  <div className="form-grid">
+                    <div className="form-group">
+                      <label>Estado</label>
+                      <select 
+                        className="form-control"
+                        value={nonConformityData.estado}
+                        onChange={(e) => setNonConformityData({...nonConformityData, estado: e.target.value})}
+                      >
+                        <option value="Abierto">Abierto</option>
+                        <option value="Cerrado">Cerrado</option>
+                        <option value="En Seguimiento">En Seguimiento</option>
+                      </select>
+                    </div>
+                    <div className="form-group">
+                      <label>Responsable</label>
+                      <input 
+                        type="text" 
+                        className="form-control"
+                        placeholder="Nombre completo"
+                        value={nonConformityData.responsable}
+                        onChange={(e) => setNonConformityData({...nonConformityData, responsable: e.target.value})}
+                        required
+                      />
+                    </div>
+                  </div>
+
+                  <button type="submit" className="submit-btn highlight" style={{ background: '#ef4444' }}>
+                    <Save size={18} />
+                    <span>Emitir Informe NC</span>
+                  </button>
+                </form>
+              </motion.div>
             ) : selectedRecord ? (
               <motion.div
                 key="detail-view"
@@ -944,7 +1119,7 @@ const RegsApp = () => {
                         </div>
                       </div>
                     </>
-                  ) : (
+                  ) : selectedRecord.type === 'material' ? (
                     <>
                       <div className="report-view-header">
                         <div className="header-main">
@@ -1019,6 +1194,54 @@ const RegsApp = () => {
                         </div>
                       </div>
                     </>
+                  ) : (
+                    <>
+                      <div className="report-view-header">
+                        <div className="header-main">
+                          <h2>No Inconformidad</h2>
+                          <div className="type-indicator-bubble danger">HALLAZGO DE CALIDAD</div>
+                        </div>
+                        <div className="header-meta">
+                          <span>{selectedRecord.codigo}</span>
+                          <span>{selectedRecord.created}</span>
+                        </div>
+                      </div>
+
+                      <div className="report-view-grid">
+                        <div className="view-group">
+                          <label>Fecha Hallazgo</label>
+                          <div className="view-value">{formatInputDate(selectedRecord.fecha)}</div>
+                        </div>
+                        <div className="view-group">
+                          <label>Estado</label>
+                          <span className={`badge ${selectedRecord.estado?.toLowerCase().replace(/\s+/g, '-')}`}>
+                            {selectedRecord.estado}
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="view-group full">
+                        <label>Descripción del Desvío</label>
+                        <div className="view-value large">{selectedRecord.descripcion}</div>
+                      </div>
+
+                      <div className="view-group full">
+                        <label>Causa Raíz</label>
+                        <div className="view-value large">{selectedRecord.causaRaiz || '-'}</div>
+                      </div>
+
+                      <div className="view-group full">
+                        <label>Acción Correctiva</label>
+                        <div className="view-value large">{selectedRecord.accionCorrectiva || '-'}</div>
+                      </div>
+
+                      <div className="report-view-footer">
+                        <div className="view-group">
+                          <label>Responsable</label>
+                          <div className="view-signature">{selectedRecord.responsable}</div>
+                        </div>
+                      </div>
+                    </>
                   )}
                 </div>
 
@@ -1045,7 +1268,9 @@ const RegsApp = () => {
                       >
                         <div className="item-info">
                           <div className="item-type-label">
-                            {record.type === 'report' ? '💻 PRUEBA DE DESARROLLO' : '📦 INGRESO DE MATERIAL'}
+                            {record.type === 'report' ? '💻 PRUEBA DE DESARROLLO' : 
+                             record.type === 'material' ? '📦 INGRESO DE MATERIAL' : 
+                             '⚠️ NO INCONFORMIDAD'}
                           </div>
                           <h3>{record.producto}</h3>
                           <div className="item-meta">
