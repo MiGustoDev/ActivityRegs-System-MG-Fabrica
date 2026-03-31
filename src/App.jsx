@@ -308,53 +308,55 @@ const RegsApp = () => {
     const record = records.find(r => r.id === recordId);
     if (!record) return;
 
-    const sectorInfo = SECTORS.find(s => s.id === activeSector);
-    const newMsg = {
-      sectorId: activeSector,
-      sectorName: sectorInfo ? sectorInfo.label : activeSector,
-      sectorColor: sectorInfo ? sectorInfo.color : '#fff',
-      text: responseText,
-      timestamp: getCurrentTimestamp()
-    };
-
-    const updatedRecords = records.map(r => 
-      r.id === recordId ? { 
-        ...r, 
-        respuestas: [...(Array.isArray(r.respuestas) ? r.respuestas : []), newMsg] 
-      } : r
-    );
-    setRecords(updatedRecords);
-    localStorage.setItem('regsapp_records_multisector_v2', JSON.stringify(updatedRecords));
-
-    // Send notification back to the other party
-    const isQualityEmitting = activeSector === record.sector;
-    const targetSectorMatch = isQualityEmitting 
-       ? SECTORS.find(s => s.label === record.areaImplicada)
-       : SECTORS.find(s => s.id === record.sector);
-
-    const newNotif = {
-      id: Date.now(),
-      targetSector: targetSectorMatch ? targetSectorMatch.id : (isQualityEmitting ? 'all' : 'calidad'),
-      targetSectorName: targetSectorMatch ? targetSectorMatch.label : (isQualityEmitting ? 'Múltiples' : 'Calidad'),
-      message: `NUEVA RESPUESTA EN NC (${record.codigo})`,
-      details: responseText,
-      timestamp: getCurrentTimestamp(),
-      seen: false,
-      refId: record.id
-    };
-    setNotifications([newNotif, ...notifications]);
-
-    // Clear the edit state in selectedRecord
-    setSelectedRecord({ 
-      ...record, 
-      respuestas: [...(Array.isArray(record.respuestas) ? record.respuestas : []), newMsg],
-      tempResponse: '' 
-    });
-
     setConfirmModal({
       show: true,
-      title: 'Respuesta enviada con éxito',
-      action: () => setConfirmModal({ show: false, action: null, title: '' })
+      title: '¿Confirmar envío de respuesta?',
+      action: () => {
+        const sectorInfo = SECTORS.find(s => s.id === activeSector);
+        const newMsg = {
+          sectorId: activeSector,
+          sectorName: sectorInfo ? sectorInfo.label : activeSector,
+          sectorColor: sectorInfo ? sectorInfo.color : '#fff',
+          text: responseText,
+          timestamp: getCurrentTimestamp()
+        };
+
+        const updatedRecords = records.map(r => 
+          r.id === recordId ? { 
+            ...r, 
+            respuestas: [...(Array.isArray(r.respuestas) ? r.respuestas : []), newMsg] 
+          } : r
+        );
+        setRecords(updatedRecords);
+        localStorage.setItem('regsapp_records_multisector_v2', JSON.stringify(updatedRecords));
+
+        // Send notification back to the other party
+        const isQualityEmitting = activeSector === record.sector;
+        const targetSectorMatch = isQualityEmitting 
+           ? SECTORS.find(s => s.label === record.areaImplicada)
+           : SECTORS.find(s => s.id === record.sector);
+
+        const newNotif = {
+          id: Date.now(),
+          targetSector: targetSectorMatch ? targetSectorMatch.id : (isQualityEmitting ? 'all' : 'calidad'),
+          targetSectorName: targetSectorMatch ? targetSectorMatch.label : (isQualityEmitting ? 'Múltiples' : 'Calidad'),
+          message: `NUEVA RESPUESTA EN NC (${record.codigo})`,
+          details: responseText,
+          timestamp: getCurrentTimestamp(),
+          seen: false,
+          refId: record.id
+        };
+        setNotifications([newNotif, ...notifications]);
+
+        // Clear the edit state in selectedRecord
+        setSelectedRecord({ 
+          ...record, 
+          respuestas: [...(Array.isArray(record.respuestas) ? record.respuestas : []), newMsg],
+          tempResponse: '' 
+        });
+
+        setConfirmModal({ show: false, action: null, title: '' });
+      }
     });
   };
 
@@ -1476,50 +1478,79 @@ const RegsApp = () => {
                       <div className="view-group full" style={{ marginTop: '2rem', paddingTop: '2rem', borderTop: '2px solid rgba(255,255,255,0.05)' }}>
                         <label style={{ color: '#fff', fontSize: '0.9rem', fontWeight: '950', textTransform: 'uppercase' }}>RESPUESTA</label>
                         
-                        <div className="chat-history-container" style={{ marginTop: '1rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                          {(Array.isArray(selectedRecord.respuestas) && selectedRecord.respuestas.length > 0) ? (
-                            selectedRecord.respuestas.map((msg, idx) => (
-                              <div key={idx} className="chat-msg" style={{ padding: '0.75rem 1rem', background: '#111', borderRadius: '10px', border: '1px solid #222' }}>
-                                <span style={{ color: msg.sectorColor || '#fff', fontWeight: '900', marginRight: '0.5rem', textTransform: 'uppercase', fontSize: '0.75rem' }}>
-                                  {msg.sectorName}:
-                                </span>
-                                <span style={{ color: '#eee', fontSize: '0.85rem' }}>{msg.text}</span>
-                                <div style={{ fontSize: '0.6rem', color: '#444', marginTop: '0.25rem' }}>{msg.timestamp}</div>
-                              </div>
-                            ))
+                        <div 
+                          className="unified-chat-field form-control" 
+                          style={{ 
+                            marginTop: '1rem', 
+                            background: '#0a0a0a', 
+                            border: '1px solid #333', 
+                            borderRadius: '12px',
+                            padding: '1rem',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            gap: '0.75rem',
+                            minHeight: '120px'
+                          }}
+                        >
+                          {/* Chat History Inside the Box */}
+                          {(Array.isArray(selectedRecord.respuestas) && selectedRecord.respuestas.length > 0) && (
+                            <div className="chat-history-internal" style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                              {selectedRecord.respuestas.map((msg, idx) => (
+                                <div key={idx} style={{ lineHeight: '1.4' }}>
+                                  <span style={{ color: msg.sectorColor || '#fff', fontWeight: '900', marginRight: '0.5rem', textTransform: 'uppercase', fontSize: '0.8rem' }}>
+                                    {msg.sectorName}:
+                                  </span>
+                                  <span style={{ color: '#eee', fontSize: '0.85rem' }}>{msg.text}</span>
+                                </div>
+                              ))}
+                              {/* Separator line before new input */}
+                              <div style={{ height: '1px', background: '#222', margin: '0.5rem 0' }}></div>
+                            </div>
+                          )}
+
+                          {/* New Input Area */}
+                          {(activeSector === selectedRecord.sector || SECTORS.find(s => s.id === activeSector)?.label === selectedRecord.areaImplicada) ? (
+                            <div style={{ display: 'flex', alignItems: 'flex-start', flex: 1 }}>
+                              <span style={{ color: SECTORS.find(s => s.id === activeSector)?.color || '#fff', fontWeight: '900', marginRight: '0.5rem', textTransform: 'uppercase', fontSize: '0.8rem', paddingTop: '1px' }}>
+                                {SECTORS.find(s => s.id === activeSector)?.label || 'SECTOR'}:
+                              </span>
+                              <textarea 
+                                className="auto-expand"
+                                style={{ 
+                                  flex: 1, 
+                                  background: 'transparent', 
+                                  border: 'none', 
+                                  color: '#fff',
+                                  outline: 'none',
+                                  resize: 'none',
+                                  fontSize: '0.85rem',
+                                  lineHeight: '1.4',
+                                  fontFamily: 'inherit',
+                                  padding: 0,
+                                  margin: 0,
+                                  minHeight: '40px'
+                                }}
+                                placeholder="Escribe tu respuesta aquí..."
+                                value={selectedRecord.tempResponse || ''}
+                                onChange={(e) => handleTextAreaChange(e, 'tempResponse', setSelectedRecord, selectedRecord)}
+                              />
+                            </div>
                           ) : (
-                            <div className="view-value large" style={{ background: 'rgba(255,255,255,0.02)', border: '1px dashed #333', minHeight: '60px', padding: '1.2rem', color: '#666' }}>
-                              No hay respuestas registradas aún.
+                            <div style={{ color: '#666', fontSize: '0.85rem', fontStyle: 'italic', marginTop: selectedRecord.respuestas?.length ? 0 : '1rem' }}>
+                              {selectedRecord.respuestas?.length === 0 ? "No hay respuestas registradas aún." : "El área implicada responderá aquí."}
                             </div>
                           )}
                         </div>
 
-                        {/* Both the target area and the issuer can respond */}
+                        {/* Submit Button */}
                         {(activeSector === selectedRecord.sector || SECTORS.find(s => s.id === activeSector)?.label === selectedRecord.areaImplicada) && (
-                          <div className="response-edit-container" style={{ marginTop: '1.5rem' }}>
-                            <textarea 
-                              className="form-control auto-expand"
-                              style={{ 
-                                width: '100%', 
-                                background: '#0a0a0a', 
-                                border: '1px solid #333', 
-                                borderRadius: '12px',
-                                padding: '1rem',
-                                color: '#fff',
-                                minHeight: '80px'
-                              }}
-                              placeholder="Escribe una nueva respuesta..."
-                              value={selectedRecord.tempResponse || ''}
-                              onChange={(e) => handleTextAreaChange(e, 'tempResponse', setSelectedRecord, selectedRecord)}
-                            />
-                            <button 
-                              className="submit-btn"
-                              style={{ margin: '1rem 0 0 auto', width: 'auto', padding: '0.8rem 2.5rem', fontSize: '0.85rem', background: '#fff', color: '#000', border: 'none', fontWeight: '900', borderRadius: '10px' }}
-                              onClick={() => handleSaveResponse(selectedRecord.id, selectedRecord.tempResponse)}
-                            >
-                              Enviar respuesta
-                            </button>
-                          </div>
+                          <button 
+                            className="submit-btn"
+                            style={{ margin: '1rem 0 0 auto', width: 'auto', padding: '0.8rem 2.5rem', fontSize: '0.85rem', background: '#fff', color: '#000', border: 'none', fontWeight: '900', borderRadius: '10px' }}
+                            onClick={() => handleSaveResponse(selectedRecord.id, selectedRecord.tempResponse)}
+                          >
+                            ENVIAR RESPUESTA
+                          </button>
                         )}
                       </div>
                     </>
