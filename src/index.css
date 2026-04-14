@@ -1676,12 +1676,14 @@ textarea.form-control {
   right: 0;
   width: 350px;
   height: auto;
-  max-height: 500px;
+  max-height: calc(100vh - 150px);
   background: #09090b;
   border-radius: 16px;
   border: 1px solid rgba(255, 255, 255, 0.1);
   box-shadow: 0 15px 40px rgba(0, 0, 0, 0.5);
   overflow: visible;
+  display: flex;
+  flex-direction: column;
 }
 
 .dropdown-arrow {
@@ -1741,6 +1743,24 @@ textarea.form-control {
   display: flex;
   flex-direction: column;
   gap: 1rem;
+}
+
+/* Custom Scrollbar for Notification List */
+.notif-list::-webkit-scrollbar {
+  width: 6px;
+}
+
+.notif-list::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.notif-list::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+}
+
+.notif-list::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.2);
 }
 
 .notif-item {
