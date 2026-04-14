@@ -602,6 +602,17 @@ const RegsApp = () => {
     setFormData({...formData, codigo: value});
   }
 
+  const formatNonConformityCode = (rawValue = '') => {
+    const normalized = rawValue.toUpperCase().replace(/\s/g, '');
+    const digits = normalized.replace(/^NC-?/, '').replace(/\D/g, '');
+    return digits ? `NC-${digits}` : 'NC-';
+  };
+
+  const handleNonConformityCodeChange = (e) => {
+    const formattedCode = formatNonConformityCode(e.target.value);
+    setNonConformityData({ ...nonConformityData, codigo: formattedCode });
+  };
+
   const handleCategoryToggle = (cat) => {
     const current = [...formData.categoria];
     const index = current.indexOf(cat);
@@ -836,14 +847,7 @@ const RegsApp = () => {
                                 )}
                               </div>
 
-                              <div className="notif-footer">
-                                <button 
-                                   onClick={() => { setNotifications([]); setShowNotifications(false); }}
-                                   className="clear-all"
-                                >
-                                  Vaciar centro de alertas
-                                </button>
-                              </div>
+
                             </motion.div>
                           </>
                         )}
@@ -1333,9 +1337,22 @@ const RegsApp = () => {
                       <input 
                         type="text" 
                         className="form-control"
-                        placeholder="NC-2026-..."
+                        placeholder="NC-2026"
                         value={nonConformityData.codigo}
-                        onChange={(e) => setNonConformityData({...nonConformityData, codigo: e.target.value})}
+                        onChange={handleNonConformityCodeChange}
+                        onFocus={() => {
+                          if (!nonConformityData.codigo) {
+                            setNonConformityData({ ...nonConformityData, codigo: 'NC-' });
+                          }
+                        }}
+                        onBlur={() => {
+                          if (nonConformityData.codigo === 'NC-') {
+                            setNonConformityData({ ...nonConformityData, codigo: '' });
+                          }
+                        }}
+                        maxLength={13}
+                        pattern="^NC-\d+$"
+                        title="Formato requerido: NC- seguido de números (ej: NC-2026)"
                         required
                       />
                     </div>
@@ -1601,7 +1618,7 @@ const RegsApp = () => {
                     <>
                       <div className="report-view-header">
                         <div className="header-main">
-                          <h2>No Conformidad</h2>
+                          <h2 className="detail-title-nc">No Conformidad</h2>
                           <div className="type-indicator-bubble danger">HALLAZGO DE CALIDAD</div>
                         </div>
                         <div className="header-meta">
@@ -1767,7 +1784,9 @@ const RegsApp = () => {
                              (record.type === 'material' || record.tipo === 'material') ? '📦 INGRESO DE MATERIAL' : 
                              '⚠️ NO CONFORMIDAD'}
                           </div>
-                          <h3>{record.producto}</h3>
+                          <h3 className={(record.type === 'non-conformity' || record.tipo === 'non-conformity') ? 'history-title-nc' : ''}>
+                            {record.producto}
+                          </h3>
                           <div className="item-meta">
                             <p><Clock size={12} /> {formatInputDate(record.fecha || record.fechaIngreso)}</p>
                             <p><User size={12} /> {record.responsable || record.ingresadoPor}</p>

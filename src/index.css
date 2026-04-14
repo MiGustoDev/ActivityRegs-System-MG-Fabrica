@@ -634,6 +634,13 @@ body {
   color: #fff;
 }
 
+.item-info h3.history-title-nc {
+  font-size: 0.9rem;
+  font-weight: 400;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+
 .item-info p {
   font-size: 0.85rem;
   color: #8c8c8c;
@@ -1340,6 +1347,13 @@ textarea.form-control {
   margin: 0;
 }
 
+.header-main h2.detail-title-nc {
+  font-size: 0.9rem;
+  font-weight: 400;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+
 .header-meta {
   display: flex;
   flex-direction: column;
@@ -1795,30 +1809,7 @@ textarea.form-control {
   gap: 1rem;
 }
 
-.notif-footer {
-  padding: 1.5rem;
-  border-top: 1px solid var(--border);
-  background: #111;
-}
 
-.clear-all {
-  width: 100%;
-  padding: 0.85rem;
-  background: transparent;
-  border: 1px solid #333;
-  color: #555;
-  border-radius: 10px;
-  font-size: 0.75rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.clear-all:hover {
-  border-color: #555;
-  color: #888;
-}
 
 /* Animaciones y Badges */
 .pulse-yellow {
@@ -1847,4 +1838,4 @@ textarea.form-control {
   .notif-panel {
     width: 100%;
   }
-}
+}
