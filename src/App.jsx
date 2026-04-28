@@ -25,8 +25,8 @@ import { supabase } from './supabase';
 const SECTORS = [
   { id: 'desarrollo', label: 'Desarrollo', icon: ClipboardCheck, color: '#3b82f6', description: 'Informes de prueba y recepción de mercaderia', isLocked: false },
   { id: 'calidad', label: 'Calidad', icon: ShieldCheck, color: '#10b981', description: 'Auditorias y controles de calidad', isLocked: false },
-  { id: 'rrhh', label: 'RR.HH', icon: Users, color: '#6366f1', description: 'Gestión de personal y talento', isLocked: true },
-  { id: 'marketing', label: 'Marketing', icon: Megaphone, color: '#d946ef', description: 'Estrategia y comunicación de marca', isLocked: true },
+  { id: 'rrhh', label: 'RR.HH', icon: Users, color: '#6366f1', description: 'Gestión de personal y talento', isLocked: false },
+  { id: 'marketing', label: 'Marketing', icon: Megaphone, color: '#d946ef', description: 'Estrategia y comunicación de marca', isLocked: false },
   { id: 'proveedores', label: 'Proveedores', icon: Truck, color: '#f59e0b', description: 'Gestión y evaluación de proveedores', isLocked: true },
   { id: 'produccion', label: 'Produccion', icon: HardHat, color: '#ef4444', description: 'Registros de linea y rendimiento', isLocked: true },
   { id: 'logistica', label: 'Logistica', icon: Package, color: '#8b5cf6', description: 'Control de despacho y flota', isLocked: true },
@@ -444,7 +444,9 @@ const RegsApp = () => {
   // Helper: get only non‑conformity notifications for the current sector
   const filteredNotifications = notifications.filter(
     n => n.targetSector === activeSector &&
-         (n.message?.toLowerCase().includes('no conformidad') || n.message?.toLowerCase().includes('nueva no conformidad'))
+         (n.message?.toLowerCase().includes('no conformidad') || 
+          n.message?.toLowerCase().includes('nueva no conformidad') ||
+          n.message?.toLowerCase().includes('novedad de personal'))
   );
 
   // Mark all relevant notifications as seen (only those filtered above)
@@ -522,7 +524,10 @@ const RegsApp = () => {
   const hasUnansweredNotifications = filteredNotifications.some(notif => {
     const refId = notif.refId ?? notif.ref_id;
     const record = records.find(r => r.id === refId);
-    return record && (!record.respuestas || record.respuestas.length === 0);
+    if (!record) return false;
+    // Las novedades de personal son informativas y no requieren respuesta obligatoria (evita el color rojo)
+    if (record.sector === 'rrhh') return false;
+    return !record.respuestas || record.respuestas.length === 0;
   });
 
   const notifStatus = 
@@ -626,9 +631,9 @@ const RegsApp = () => {
     e.preventDefault();
     setConfirmModal({
       show: true,
-      title: '¿Confirmar guardado de informe?',
+      title: activeSector === 'rrhh' ? '¿Confirmar envío de registro?' : '¿Confirmar guardado de informe?',
       action: async () => {
-        const { data, error } = await supabase.from('registros').insert([{
+        const { data: newRecs, error } = await supabase.from('registros').insert([{
           sector: activeSector,
           tipo: 'report',
           producto: formData.producto,
@@ -638,7 +643,20 @@ const RegsApp = () => {
           datos: { ...formData }
         }]).select();
         
-        if (!error) {
+        if (!error && newRecs) {
+          if (activeSector === 'rrhh') {
+            const targetSectorId = formData.tipoPrueba;
+            const targetSector = SECTORS.find(s => s.id === targetSectorId);
+            
+            await upsertNcNotification({
+              targetSector: targetSectorId,
+              targetSectorName: targetSector ? targetSector.label : targetSectorId,
+              message: `NOVEDAD DE PERSONAL: ${formData.producto}`,
+              details: formData.justificacion,
+              refId: newRecs[0].id
+            });
+          }
+
           setFormData(initialFormState());
           setSelectedRecord(null);
           setActiveSubTab('history');
@@ -1179,6 +1197,21 @@ const RegsApp = () => {
                   INFORME DE NO CONFORMIDAD
                 </button>
               </>
+            ) : activeSector === 'rrhh' ? (
+              <>
+                <button 
+                  onClick={() => { setActiveSubTab('form'); setSelectedRecord(null); }}
+                  className={`sub-tab-btn ${activeSubTab === 'form' ? 'active' : ''}`}
+                >
+                  PERSONAL
+                </button>
+                <button 
+                  onClick={() => { setActiveSubTab('history'); setSelectedRecord(null); }}
+                  className={`sub-tab-btn ${activeSubTab === 'history' ? 'active' : ''}`}
+                >
+                  VER HISTORIAL
+                </button>
+              </>
             ) : (
               <>
                 <button 
@@ -1222,165 +1255,210 @@ const RegsApp = () => {
               >
                 <div className="section-title-container">
                   <h2 className="section-title">
-                    Informe de Pruebas: {SECTORS.find(s => s.id === activeSector)?.label || 'Sector'}
+                    {activeSector === 'rrhh' ? 'Gestión de Personal' : `Informe de Pruebas: ${SECTORS.find(s => s.id === activeSector)?.label || 'Sector'}`}
                   </h2>
                 </div>
 
                 <form onSubmit={handleSubmit} className="record-form">
-                  <div className="form-grid">
-                    <div className="form-group">
-                      <label>Código Informe</label>
-                      <input 
-                        type="text" 
-                        className="form-control"
-                        placeholder="INF-00..."
-                        value={formData.codigo}
-                        onChange={handleCodigoChange}
-                        required
-                      />
-                    </div>
-                    <div className="form-group">
-                      <label>Revisión</label>
-                      <input 
-                        type="text" 
-                        className="form-control"
-                        placeholder="0"
-                        value={formData.revision}
-                        onChange={handleRevisionChange}
-                        required
-                      />
-                    </div>
-                  </div>
-
-                  <div className="form-grid">
-                    <div className="form-group">
-                      <label>Producto</label>
-                      <input 
-                        type="text" 
-                        className="form-control"
-                        placeholder="Nombre del producto"
-                        value={formData.producto}
-                        onChange={(e) => setFormData({...formData, producto: e.target.value})}
-                        required
-                      />
-                    </div>
-                    <div className="form-group">
-                      <label>Fecha</label>
-                      <input 
-                        type="text" 
-                        className="form-control"
-                        placeholder="DD/MM/YYYY"
-                        maxLength={10}
-                        value={formData.fecha}
-                        onChange={(e) => setFormData({...formData, fecha: handleDateMask(e.target.value, formData.fecha)})}
-                        required
-                      />
-                    </div>
-                  </div>
-
-                  <div className="form-grid">
-                    <div className="form-group">
-                      <label>Tipo de Prueba</label>
-                      <input 
-                        type="text" 
-                        className="form-control"
-                        placeholder="Ej: Cambio/Mejora de proceso"
-                        value={formData.tipoPrueba}
-                        onChange={(e) => setFormData({...formData, tipoPrueba: e.target.value})}
-                      />
-                    </div>
-
-                    <div className="form-group">
-                      <label>Categoría</label>
-                      <div className="checkbox-group">
-                        {['MP', 'SE', 'PT', 'ME'].map(cat => (
-                          <button
-                            type="button"
-                            key={cat}
-                            className={`chip-btn ${formData.categoria.includes(cat) ? 'active' : ''}`}
-                            onClick={() => handleCategoryToggle(cat)}
-                          >
-                            {cat}
-                          </button>
-                        ))}
+                  {activeSector === 'rrhh' ? (
+                    <>
+                      <div className="form-group">
+                        <label>Colaborador</label>
+                        <input 
+                          type="text" 
+                          className="form-control"
+                          placeholder="Ingrese nombre y apellido"
+                          value={formData.producto}
+                          onChange={(e) => setFormData({...formData, producto: e.target.value, codigo: 'PERS-' + Date.now().toString().slice(-6)})}
+                          required
+                        />
                       </div>
-                    </div>
-                  </div>
-
-                  <div className="form-group">
-                    <label>Justificación</label>
-                    <textarea 
-                      className="form-control auto-expand"
-                      placeholder="Motivo de la prueba..."
-                      value={formData.justificacion}
-                      onChange={(e) => handleTextAreaChange(e, 'justificacion')}
-                      rows={2}
-                    />
-                  </div>
-
-                  <div className="form-group">
-                    <label>Descripción de la prueba</label>
-                    <textarea 
-                      className="form-control auto-expand"
-                      placeholder="Procedimiento realizado..."
-                      value={formData.descripcionPrueba}
-                      onChange={(e) => handleTextAreaChange(e, 'descripcionPrueba')}
-                      rows={2}
-                    />
-                  </div>
-
-                  <div className="form-group">
-                    <label>Resultados obtenidos</label>
-                    <textarea 
-                      className="form-control auto-expand"
-                      placeholder="Hallazgos y datos medidos..."
-                      value={formData.resultados}
-                      onChange={(e) => handleTextAreaChange(e, 'resultados')}
-                      rows={2}
-                    />
-                  </div>
-
-                  <div className="form-group">
-                    <label>Decisión Final</label>
-                    <div className="decision-group">
-                      {['Aprobado', 'En Proceso', 'Rechazado', 'Condicional'].map(decision => (
-                        <button
-                          type="button"
-                          key={decision}
-                          className={`decision-btn ${formData.decisionFinal === decision ? 'active' : ''}`}
-                          onClick={() => setFormData({...formData, decisionFinal: decision})}
+                      
+                      <div className="form-group">
+                        <label>Sector</label>
+                        <select 
+                          className="form-control"
+                          value={formData.tipoPrueba}
+                          onChange={(e) => setFormData({...formData, tipoPrueba: e.target.value})}
+                          required
                         >
-                          {decision}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
+                          <option value="">Seleccione sector...</option>
+                          {SECTORS.filter(s => s.id !== 'marketing' && s.id !== 'rrhh').map(s => (
+                            <option key={s.id} value={s.id}>{s.label}</option>
+                          ))}
+                        </select>
+                      </div>
 
-                  <div className="form-group">
-                    <label>Observaciones Finales</label>
-                    <textarea 
-                      className="form-control auto-expand"
-                      placeholder="Notas adicionales..."
-                      value={formData.observaciones}
-                      onChange={(e) => handleTextAreaChange(e, 'observaciones')}
-                      rows={2}
-                    />
-                  </div>
+                      <div className="form-group">
+                        <label>Motivo</label>
+                        <textarea 
+                          className="form-control auto-expand"
+                          placeholder="Ingresar motivo"
+                          value={formData.justificacion}
+                          onChange={(e) => handleTextAreaChange(e, 'justificacion')}
+                          rows={3}
+                          required
+                        />
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <div className="form-grid">
+                        <div className="form-group">
+                          <label>Código Informe</label>
+                          <input 
+                            type="text" 
+                            className="form-control"
+                            placeholder="INF-00..."
+                            value={formData.codigo}
+                            onChange={handleCodigoChange}
+                            required
+                          />
+                        </div>
+                        <div className="form-group">
+                          <label>Revisión</label>
+                          <input 
+                            type="text" 
+                            className="form-control"
+                            placeholder="0"
+                            value={formData.revision}
+                            onChange={handleRevisionChange}
+                            required
+                          />
+                        </div>
+                      </div>
 
-                  <div className="form-group">
-                    <label>Responsable/s</label>
-                    <input 
-                      type="text" 
-                      className="form-control"
-                      placeholder="Nombres de los responsables"
-                      value={formData.responsable}
-                      onChange={(e) => setFormData({...formData, responsable: e.target.value})}
-                    />
-                  </div>
+                      <div className="form-grid">
+                        <div className="form-group">
+                          <label>Producto</label>
+                          <input 
+                            type="text" 
+                            className="form-control"
+                            placeholder="Nombre del producto"
+                            value={formData.producto}
+                            onChange={(e) => setFormData({...formData, producto: e.target.value})}
+                            required
+                          />
+                        </div>
+                        <div className="form-group">
+                          <label>Fecha</label>
+                          <input 
+                            type="text" 
+                            className="form-control"
+                            placeholder="DD/MM/YYYY"
+                            maxLength={10}
+                            value={formData.fecha}
+                            onChange={(e) => setFormData({...formData, fecha: handleDateMask(e.target.value, formData.fecha)})}
+                            required
+                          />
+                        </div>
+                      </div>
+
+                      <div className="form-grid">
+                        <div className="form-group">
+                          <label>Tipo de Prueba</label>
+                          <input 
+                            type="text" 
+                            className="form-control"
+                            placeholder="Ej: Cambio/Mejora de proceso"
+                            value={formData.tipoPrueba}
+                            onChange={(e) => setFormData({...formData, tipoPrueba: e.target.value})}
+                          />
+                        </div>
+
+                        <div className="form-group">
+                          <label>Categoría</label>
+                          <div className="checkbox-group">
+                            {['MP', 'SE', 'PT', 'ME'].map(cat => (
+                              <button
+                                type="button"
+                                key={cat}
+                                className={`chip-btn ${formData.categoria.includes(cat) ? 'active' : ''}`}
+                                onClick={() => handleCategoryToggle(cat)}
+                              >
+                                {cat}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="form-group">
+                        <label>Justificación</label>
+                        <textarea 
+                          className="form-control auto-expand"
+                          placeholder="Motivo de la prueba..."
+                          value={formData.justificacion}
+                          onChange={(e) => handleTextAreaChange(e, 'justificacion')}
+                          rows={2}
+                        />
+                      </div>
+
+                      <div className="form-group">
+                        <label>Descripción de la prueba</label>
+                        <textarea 
+                          className="form-control auto-expand"
+                          placeholder="Procedimiento realizado..."
+                          value={formData.descripcionPrueba}
+                          onChange={(e) => handleTextAreaChange(e, 'descripcionPrueba')}
+                          rows={2}
+                        />
+                      </div>
+
+                      <div className="form-group">
+                        <label>Resultados obtenidos</label>
+                        <textarea 
+                          className="form-control auto-expand"
+                          placeholder="Hallazgos y datos medidos..."
+                          value={formData.resultados}
+                          onChange={(e) => handleTextAreaChange(e, 'resultados')}
+                          rows={2}
+                        />
+                      </div>
+
+                      <div className="form-group">
+                        <label>Decisión Final</label>
+                        <div className="decision-group">
+                          {['Aprobado', 'En Proceso', 'Rechazado', 'Condicional'].map(decision => (
+                            <button
+                              type="button"
+                              key={decision}
+                              className={`decision-btn ${formData.decisionFinal === decision ? 'active' : ''}`}
+                              onClick={() => setFormData({...formData, decisionFinal: decision})}
+                            >
+                              {decision}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      <div className="form-group">
+                        <label>Observaciones Finales</label>
+                        <textarea 
+                          className="form-control auto-expand"
+                          placeholder="Notas adicionales..."
+                          value={formData.observaciones}
+                          onChange={(e) => handleTextAreaChange(e, 'observaciones')}
+                          rows={2}
+                        />
+                      </div>
+
+                      <div className="form-group">
+                        <label>Responsable/s</label>
+                        <input 
+                          type="text" 
+                          className="form-control"
+                          placeholder="Nombres de los responsables"
+                          value={formData.responsable}
+                          onChange={(e) => setFormData({...formData, responsable: e.target.value})}
+                        />
+                      </div>
+                    </>
+                  )}
 
                   <button type="submit" className="submit-btn highlight">
                     <Save size={18} />
-                    <span>Guardar Informe</span>
+                    <span>{activeSector === 'rrhh' ? 'Enviar Registro' : 'Guardar Informe'}</span>
                   </button>
                 </form>
               </motion.div>
@@ -2044,88 +2122,115 @@ const RegsApp = () => {
                     <>
                       <div className="report-view-header">
                         <div className="header-main">
-                          <h2>Detalle del Informe</h2>
-                          <span className="badge">{selectedRecord.codigo || 'SIN CODIGO'}</span>
+                          <h2>{selectedRecord.sector === 'rrhh' ? 'Detalle de gestión del personal' : 'Detalle del Informe'}</h2>
+                          {selectedRecord.sector !== 'rrhh' && <span className="badge">{selectedRecord.codigo || 'SIN CODIGO'}</span>}
                         </div>
                         <div className="header-meta">
-                          <span>Revisión: {selectedRecord.revision || '0'}</span>
+                          {selectedRecord.sector !== 'rrhh' && <span>Revisión: {selectedRecord.revision || '0'}</span>}
                           <span>{selectedRecord.created}</span>
                         </div>
                       </div>
 
-                      <div className="report-view-grid">
-                        <div className="view-group">
-                          <label>Producto</label>
-                          <div className="view-value">{selectedRecord.producto}</div>
-                        </div>
-                        <div className="view-group">
-                          <label>Fecha</label>
-                          <div className="view-value">{formatInputDate(selectedRecord.fecha)}</div>
-                        </div>
-                      </div>
-
-                      <div className="report-view-grid">
-                        <div className="view-group">
-                          <label>Tipo de Prueba</label>
-                          <div className="view-value">{selectedRecord.tipoPrueba || '-'}</div>
-                        </div>
-                        <div className="view-group">
-                          <label>Categoría</label>
-                          <div className="view-chips">
-                            {['MP', 'SE', 'PT', 'ME'].map(cat => (
-                              <span key={cat} className={`view-chip ${selectedRecord.categoria?.includes(cat) ? 'active' : ''}`}>
-                                {cat}
-                              </span>
-                            ))}
+                      {selectedRecord.sector === 'rrhh' ? (
+                        <>
+                          <div className="report-view-grid">
+                            <div className="view-group">
+                              <label>Colaborador</label>
+                              <div className="view-value highlight">{selectedRecord.producto}</div>
+                            </div>
+                            <div className="view-group">
+                              <label>Fecha</label>
+                              <div className="view-value">{formatInputDate(selectedRecord.fecha)}</div>
+                            </div>
                           </div>
-                        </div>
-                      </div>
-
-                      <div className="view-group full">
-                        <label>Justificación</label>
-                        <div className="view-value large">{selectedRecord.justificacion}</div>
-                      </div>
-
-                      <div className="view-group full">
-                        <label>Descripción de la prueba</label>
-                        <div className="view-value large">{selectedRecord.descripcionPrueba}</div>
-                      </div>
-
-                      <div className="view-group full">
-                        <label>Resultados obtenidos</label>
-                        <div className="view-value large">{selectedRecord.resultados}</div>
-                      </div>
-
-                      <div className="report-view-grid">
-                        <div className="view-group">
-                          <label>Decisión Final</label>
-                          <div className="view-chips">
-                            {['Aprobado', 'En Proceso', 'Rechazado', 'Condicional'].map(decision => (
-                              <span key={decision} className={`view-chip ${selectedRecord.decisionFinal === decision ? 'active' : ''}`}>
-                                {decision}
-                              </span>
-                            ))}
+                          <div className="view-group">
+                            <label>Sector Notificado</label>
+                            <div className="view-value">
+                              {SECTORS.find(s => s.id === selectedRecord.tipoPrueba)?.label || selectedRecord.tipoPrueba || '-'}
+                            </div>
                           </div>
-                        </div>
-                        <div className="view-group">
-                          <label>Estado</label>
-                          <span className={`badge ${selectedRecord.decisionFinal?.toLowerCase().replace(/\s+/g, '-')}`}>
-                            {selectedRecord.decisionFinal}
-                          </span>
-                        </div>
-                      </div>
+                          <div className="view-group full">
+                            <label>Motivo</label>
+                            <div className="view-value large">{selectedRecord.justificacion}</div>
+                          </div>
+                        </>
+                      ) : (
+                        <>
+                          <div className="report-view-grid">
+                            <div className="view-group">
+                              <label>Producto</label>
+                              <div className="view-value">{selectedRecord.producto}</div>
+                            </div>
+                            <div className="view-group">
+                              <label>Fecha</label>
+                              <div className="view-value">{formatInputDate(selectedRecord.fecha)}</div>
+                            </div>
+                          </div>
 
-                      <div className="view-group full">
-                        <label>Observaciones Finales</label>
-                        <div className="view-value large">{selectedRecord.observaciones || '-'}</div>
-                      </div>
+                          <div className="report-view-grid">
+                            <div className="view-group">
+                              <label>Tipo de Prueba</label>
+                              <div className="view-value">{selectedRecord.tipoPrueba || '-'}</div>
+                            </div>
+                            <div className="view-group">
+                              <label>Categoría</label>
+                              <div className="view-chips">
+                                {['MP', 'SE', 'PT', 'ME'].map(cat => (
+                                  <span key={cat} className={`view-chip ${selectedRecord.categoria?.includes(cat) ? 'active' : ''}`}>
+                                    {cat}
+                                  </span>
+                                ))}
+                              </div>
+                            </div>
+                          </div>
 
-                      <div className="report-view-footer">
-                        <div className="view-group">
-                          <label>Responsable/s</label>
-                          <div className="view-signature">{selectedRecord.responsable}</div>
-                        </div>
-                      </div>
+                          <div className="view-group full">
+                            <label>Justificación</label>
+                            <div className="view-value large">{selectedRecord.justificacion}</div>
+                          </div>
+
+                          <div className="view-group full">
+                            <label>Descripción de la prueba</label>
+                            <div className="view-value large">{selectedRecord.descripcionPrueba}</div>
+                          </div>
+
+                          <div className="view-group full">
+                            <label>Resultados obtenidos</label>
+                            <div className="view-value large">{selectedRecord.resultados}</div>
+                          </div>
+
+                          <div className="report-view-grid">
+                            <div className="view-group">
+                              <label>Decisión Final</label>
+                              <div className="view-chips">
+                                {['Aprobado', 'En Proceso', 'Rechazado', 'Condicional'].map(decision => (
+                                  <span key={decision} className={`view-chip ${selectedRecord.decisionFinal === decision ? 'active' : ''}`}>
+                                    {decision}
+                                  </span>
+                                ))}
+                              </div>
+                            </div>
+                            <div className="view-group">
+                              <label>Estado</label>
+                              <span className={`badge ${selectedRecord.decisionFinal?.toLowerCase().replace(/\s+/g, '-')}`}>
+                                {selectedRecord.decisionFinal}
+                              </span>
+                            </div>
+                          </div>
+
+                          <div className="view-group full">
+                            <label>Observaciones Finales</label>
+                            <div className="view-value large">{selectedRecord.observaciones || '-'}</div>
+                          </div>
+
+                          <div className="report-view-footer">
+                            <div className="view-group">
+                              <label>Responsable/s</label>
+                              <div className="view-signature">{selectedRecord.responsable}</div>
+                            </div>
+                          </div>
+                        </>
+                      )}
                     </>
                   ) : (selectedRecord.type === 'material' || selectedRecord.tipo === 'material') ? (
                     <>
@@ -2368,7 +2473,8 @@ const RegsApp = () => {
                       >
                         <div className="item-info">
                           <div className="item-type-label">
-                            {(record.type === 'report' || record.tipo === 'report') ? '💻 PRUEBA DE DESARROLLO' : 
+                            {activeSector === 'rrhh' ? '👤 REGISTRO DE PERSONAL' :
+                             (record.type === 'report' || record.tipo === 'report') ? '💻 PRUEBA DE DESARROLLO' : 
                              (record.type === 'material' || record.tipo === 'material') ? '📦 INGRESO DE MATERIAL' : 
                              (record.type === 'despacho-franquicias' || record.tipo === 'despacho-franquicias') ? '🚚 DESPACHO A FRANQUICIAS' :
                              '⚠️ NO CONFORMIDAD'}
