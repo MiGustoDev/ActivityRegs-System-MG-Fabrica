@@ -967,12 +967,15 @@ const RegsApp = () => {
     setFormData({...formData, revision: value});
   }
 
+  const formatInformeCode = (rawValue = '') => {
+    const normalized = rawValue.toUpperCase().replace(/\s/g, '');
+    const digits = normalized.replace(/^INF-?/, '').replace(/\D/g, '');
+    return digits ? `INF-${digits}` : 'INF-';
+  };
+
   const handleCodigoChange = (e) => {
-    let value = e.target.value.toUpperCase();
-    if (value === 'INF' && formData.codigo.toUpperCase() === 'IN') {
-      value = 'INF-';
-    }
-    setFormData({...formData, codigo: value});
+    const formattedCode = formatInformeCode(e.target.value);
+    setFormData({...formData, codigo: formattedCode});
   }
 
   const formatNonConformityCode = (rawValue = '') => {
@@ -1543,6 +1546,19 @@ const RegsApp = () => {
                             placeholder="INF-00..."
                             value={formData.codigo}
                             onChange={handleCodigoChange}
+                            onFocus={() => {
+                              if (!formData.codigo) {
+                                setFormData({ ...formData, codigo: 'INF-' });
+                              }
+                            }}
+                            onBlur={() => {
+                              if (formData.codigo === 'INF-') {
+                                setFormData({ ...formData, codigo: '' });
+                              }
+                            }}
+                            maxLength={13}
+                            pattern="^INF-\d+$"
+                            title="Formato requerido: INF- seguido de números (ej: INF-001)"
                             required
                           />
                         </div>
