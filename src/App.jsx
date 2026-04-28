@@ -352,6 +352,16 @@ const RegsApp = () => {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Dynamic Page Title
+  useEffect(() => {
+    const currentSector = SECTORS.find(s => s.id === activeSector);
+    if (currentSector) {
+      document.title = `Mi Gusto - ${currentSector.label}`;
+    } else {
+      document.title = "Mi Gusto - Registros";
+    }
+  }, [activeSector]);
+
   // 3. Redirección de sub-pestañas por defecto para Calidad
   useEffect(() => {
     if (activeSector === 'calidad' && activeSubTab === 'form') {
@@ -446,7 +456,10 @@ const RegsApp = () => {
     n => n.targetSector === activeSector &&
          (n.message?.toLowerCase().includes('no conformidad') || 
           n.message?.toLowerCase().includes('nueva no conformidad') ||
-          n.message?.toLowerCase().includes('novedad de personal'))
+          n.message?.toLowerCase().includes('novedad de personal') ||
+          n.message?.toLowerCase().includes('aviso de marketing') ||
+          n.message?.toLowerCase().includes('gestión de personal') ||
+          n.message?.toLowerCase().includes('respuesta'))
   );
 
   // Mark all relevant notifications as seen (only those filtered above)
@@ -525,8 +538,8 @@ const RegsApp = () => {
     const refId = notif.refId ?? notif.ref_id;
     const record = records.find(r => r.id === refId);
     if (!record) return false;
-    // Las novedades de personal son informativas y no requieren respuesta obligatoria (evita el color rojo)
-    if (record.sector === 'rrhh') return false;
+    // Las novedades de personal y marketing son informativas y no requieren respuesta obligatoria (evita el color rojo)
+    if (record.sector === 'rrhh' || record.sector === 'marketing') return false;
     return !record.respuestas || record.respuestas.length === 0;
   });
 
@@ -631,7 +644,7 @@ const RegsApp = () => {
     e.preventDefault();
     setConfirmModal({
       show: true,
-      title: activeSector === 'rrhh' ? '¿Confirmar envío de registro?' : '¿Confirmar guardado de informe?',
+      title: (activeSector === 'rrhh' || activeSector === 'marketing') ? '¿Confirmar envío de registro?' : '¿Confirmar guardado de informe?',
       action: async () => {
         const { data: newRecs, error } = await supabase.from('registros').insert([{
           sector: activeSector,
@@ -644,17 +657,21 @@ const RegsApp = () => {
         }]).select();
         
         if (!error && newRecs) {
-          if (activeSector === 'rrhh') {
-            const targetSectorId = formData.tipoPrueba;
-            const targetSector = SECTORS.find(s => s.id === targetSectorId);
+          if (activeSector === 'rrhh' || activeSector === 'marketing') {
+            const targetIds = Array.isArray(formData.tipoPrueba) ? formData.tipoPrueba : [formData.tipoPrueba];
             
-            await upsertNcNotification({
-              targetSector: targetSectorId,
-              targetSectorName: targetSector ? targetSector.label : targetSectorId,
-              message: `NOVEDAD DE PERSONAL: ${formData.producto}`,
-              details: formData.justificacion,
-              refId: newRecs[0].id
-            });
+            for (const targetSectorId of targetIds) {
+              if (!targetSectorId) continue;
+              const targetSector = SECTORS.find(s => s.id === targetSectorId);
+              
+              await upsertNcNotification({
+                targetSector: targetSectorId,
+                targetSectorName: targetSector ? targetSector.label : targetSectorId,
+                message: activeSector === 'rrhh' ? `NOVEDAD DE PERSONAL: ${formData.producto}` : `AVISO DE MARKETING: ${formData.producto}`,
+                details: formData.justificacion,
+                refId: newRecs[0].id
+              });
+            }
           }
 
           setFormData(initialFormState());
@@ -715,24 +732,56 @@ const RegsApp = () => {
           .update({ respuestas: updatedRespuestas })
           .eq('id', recordId);
 
-        // Notificación cruzada para chat NC:
-        // - Si responde Calidad, notifica al área implicada.
-        // - Si responde el área implicada, notifica a Calidad.
-        const areaImplicadaSector = getSectorFromAreaImplicada(record.areaImplicada);
-        const isQualityResponding = activeSector === record.sector;
-        const isAssignedAreaResponding = activeSector === areaImplicadaSector?.id;
+        const isRrhhOrMkt = record.sector === 'rrhh' || record.sector === 'marketing';
+        let targetSectorId = 'calidad';
+        let targetSectorName = 'Calidad';
+        let notificationMsg = `NUEVA RESPUESTA EN NO CONFORMIDAD (${record.codigo})`;
 
-        let targetSectorMatch = null;
-        if (isQualityResponding) {
-          targetSectorMatch = areaImplicadaSector;
-        } else if (isAssignedAreaResponding) {
-          targetSectorMatch = SECTORS.find(s => s.id === record.sector);
+        if (isRrhhOrMkt) {
+          notificationMsg = record.sector === 'rrhh' ? `NUEVA RESPUESTA EN GESTIÓN DE PERSONAL` : `NUEVA RESPUESTA EN AVISO DE MARKETING`;
+          const isOwnerResponding = activeSector === record.sector;
+          const assignedSectorId = record.tipoPrueba; // Guardamos el ID del sector destino aquí
+          
+          if (isOwnerResponding) {
+            const targets = Array.isArray(assignedSectorId) ? assignedSectorId : (assignedSectorId ? [assignedSectorId] : []);
+            for (const tid of targets) {
+              const target = SECTORS.find(s => s.id === tid);
+              await upsertNcNotification({
+                targetSector: tid,
+                targetSectorName: target ? target.label : tid,
+                message: notificationMsg,
+                details: responseText,
+                refId: recordId
+              });
+            }
+            setConfirmModal({ show: false, action: null, title: '' });
+            return;
+          } else {
+            const owner = SECTORS.find(s => s.id === record.sector);
+            targetSectorId = record.sector;
+            targetSectorName = owner ? owner.label : targetSectorId;
+          }
+        } else {
+          // Lógica original para NC
+          const areaImplicadaSector = getSectorFromAreaImplicada(record.areaImplicada);
+          const isQualityResponding = activeSector === record.sector;
+          const isAssignedAreaResponding = activeSector === areaImplicadaSector?.id;
+
+          if (isQualityResponding) {
+            const target = areaImplicadaSector;
+            targetSectorId = target ? target.id : 'all';
+            targetSectorName = target ? target.label : (record.areaImplicada || 'Planta');
+          } else if (isAssignedAreaResponding) {
+            const owner = SECTORS.find(s => s.id === record.sector);
+            targetSectorId = record.sector;
+            targetSectorName = owner ? owner.label : targetSectorId;
+          }
         }
 
         await upsertNcNotification({
-          targetSector: targetSectorMatch ? targetSectorMatch.id : 'calidad',
-          targetSectorName: targetSectorMatch ? targetSectorMatch.label : 'Calidad',
-          message: `NUEVA RESPUESTA EN NO CONFORMIDAD (${record.codigo})`,
+          targetSector: targetSectorId,
+          targetSectorName: targetSectorName,
+          message: notificationMsg,
           details: responseText,
           refId: recordId
         });
@@ -1212,6 +1261,21 @@ const RegsApp = () => {
                   VER HISTORIAL
                 </button>
               </>
+            ) : activeSector === 'marketing' ? (
+              <>
+                <button 
+                  onClick={() => { setActiveSubTab('form'); setSelectedRecord(null); }}
+                  className={`sub-tab-btn ${activeSubTab === 'form' ? 'active' : ''}`}
+                >
+                  AVISOS
+                </button>
+                <button 
+                  onClick={() => { setActiveSubTab('history'); setSelectedRecord(null); }}
+                  className={`sub-tab-btn ${activeSubTab === 'history' ? 'active' : ''}`}
+                >
+                  VER HISTORIAL
+                </button>
+              </>
             ) : (
               <>
                 <button 
@@ -1255,7 +1319,9 @@ const RegsApp = () => {
               >
                 <div className="section-title-container">
                   <h2 className="section-title">
-                    {activeSector === 'rrhh' ? 'Gestión de Personal' : `Informe de Pruebas: ${SECTORS.find(s => s.id === activeSector)?.label || 'Sector'}`}
+                    {activeSector === 'rrhh' ? 'Gestión de Personal' : 
+                     activeSector === 'marketing' ? 'Avisos de Marketing' :
+                     `Informe de Pruebas: ${SECTORS.find(s => s.id === activeSector)?.label || 'Sector'}`}
                   </h2>
                 </div>
 
@@ -1294,6 +1360,60 @@ const RegsApp = () => {
                         <textarea 
                           className="form-control auto-expand"
                           placeholder="Ingresar motivo"
+                          value={formData.justificacion}
+                          onChange={(e) => handleTextAreaChange(e, 'justificacion')}
+                          rows={3}
+                          required
+                        />
+                      </div>
+                    </>
+                  ) : activeSector === 'marketing' ? (
+                    <>
+                      <div className="form-group">
+                        <label>Título</label>
+                        <input 
+                          type="text" 
+                          className="form-control"
+                          placeholder="Ingresar titulo"
+                          value={formData.producto}
+                          onChange={(e) => setFormData({...formData, producto: e.target.value, codigo: 'MK-' + Date.now().toString().slice(-6)})}
+                          required
+                        />
+                      </div>
+                      
+                      <div className="form-group">
+                        <label>Sectores Notificados</label>
+                        <div className="checkbox-group" style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', marginTop: '0.5rem' }}>
+                          {SECTORS.filter(s => s.id !== 'marketing' && s.id !== 'rrhh').map(s => {
+                            const isSelected = Array.isArray(formData.tipoPrueba) ? formData.tipoPrueba.includes(s.id) : formData.tipoPrueba === s.id;
+                            return (
+                              <button
+                                type="button"
+                                key={s.id}
+                                className={`chip-btn ${isSelected ? 'active' : ''}`}
+                                onClick={() => {
+                                  let current = Array.isArray(formData.tipoPrueba) ? [...formData.tipoPrueba] : (formData.tipoPrueba ? [formData.tipoPrueba] : []);
+                                  const index = current.indexOf(s.id);
+                                  if (index > -1) {
+                                    current.splice(index, 1);
+                                  } else {
+                                    current.push(s.id);
+                                  }
+                                  setFormData({...formData, tipoPrueba: current});
+                                }}
+                              >
+                                {s.label}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+
+                      <div className="form-group">
+                        <label>Descripción</label>
+                        <textarea 
+                          className="form-control auto-expand"
+                          placeholder="Ingresar descripción"
                           value={formData.justificacion}
                           onChange={(e) => handleTextAreaChange(e, 'justificacion')}
                           rows={3}
@@ -1458,7 +1578,11 @@ const RegsApp = () => {
 
                   <button type="submit" className="submit-btn highlight">
                     <Save size={18} />
-                    <span>{activeSector === 'rrhh' ? 'Enviar Registro' : 'Guardar Informe'}</span>
+                    <span>
+                      {activeSector === 'rrhh' ? 'Enviar Registro' : 
+                       activeSector === 'marketing' ? 'Enviar Aviso' : 
+                       'Guardar Informe'}
+                    </span>
                   </button>
                 </form>
               </motion.div>
@@ -2122,20 +2246,22 @@ const RegsApp = () => {
                     <>
                       <div className="report-view-header">
                         <div className="header-main">
-                          <h2>{selectedRecord.sector === 'rrhh' ? 'Detalle de gestión del personal' : 'Detalle del Informe'}</h2>
-                          {selectedRecord.sector !== 'rrhh' && <span className="badge">{selectedRecord.codigo || 'SIN CODIGO'}</span>}
+                          <h2>{selectedRecord.sector === 'rrhh' ? 'Detalle de gestión del personal' : 
+                               selectedRecord.sector === 'marketing' ? 'Detalle de Aviso de Marketing' :
+                               'Detalle del Informe'}</h2>
+                          {(selectedRecord.sector !== 'rrhh' && selectedRecord.sector !== 'marketing') && <span className="badge">{selectedRecord.codigo || 'SIN CODIGO'}</span>}
                         </div>
                         <div className="header-meta">
-                          {selectedRecord.sector !== 'rrhh' && <span>Revisión: {selectedRecord.revision || '0'}</span>}
+                          {(selectedRecord.sector !== 'rrhh' && selectedRecord.sector !== 'marketing') && <span>Revisión: {selectedRecord.revision || '0'}</span>}
                           <span>{selectedRecord.created}</span>
                         </div>
                       </div>
 
-                      {selectedRecord.sector === 'rrhh' ? (
+                      { (selectedRecord.sector === 'rrhh' || selectedRecord.sector === 'marketing') ? (
                         <>
                           <div className="report-view-grid">
                             <div className="view-group">
-                              <label>Colaborador</label>
+                              <label>{selectedRecord.sector === 'rrhh' ? 'Colaborador' : 'Título'}</label>
                               <div className="view-value highlight">{selectedRecord.producto}</div>
                             </div>
                             <div className="view-group">
@@ -2144,14 +2270,96 @@ const RegsApp = () => {
                             </div>
                           </div>
                           <div className="view-group">
-                            <label>Sector Notificado</label>
+                            <label>Sectores Notificados</label>
                             <div className="view-value">
-                              {SECTORS.find(s => s.id === selectedRecord.tipoPrueba)?.label || selectedRecord.tipoPrueba || '-'}
+                              {(() => {
+                                const targets = Array.isArray(selectedRecord.tipoPrueba) ? selectedRecord.tipoPrueba : (selectedRecord.tipoPrueba ? [selectedRecord.tipoPrueba] : []);
+                                return targets.map(tid => SECTORS.find(s => s.id === tid)?.label || tid).join(', ');
+                              })() || '-'}
                             </div>
                           </div>
                           <div className="view-group full">
-                            <label>Motivo</label>
+                            <label>{selectedRecord.sector === 'rrhh' ? 'Motivo' : 'Descripción'}</label>
                             <div className="view-value large">{selectedRecord.justificacion}</div>
+                          </div>
+
+                          {/* CHAT-LIKE RESPONSE FIELD FOR RRHH/MARKETING */}
+                          <div className="view-group full" style={{ marginTop: '2rem', paddingTop: '2rem', borderTop: '2px solid rgba(255,255,255,0.05)' }}>
+                            <label style={{ color: '#fff', fontSize: '0.9rem', fontWeight: '950', textTransform: 'uppercase' }}>CONSULTAS / RESPUESTAS</label>
+                            
+                            <div 
+                              className="unified-chat-field form-control" 
+                              style={{ 
+                                marginTop: '1rem', 
+                                background: '#0a0a0a', 
+                                border: '1px solid #333', 
+                                borderRadius: '12px',
+                                padding: '1rem',
+                                display: 'flex',
+                                flexDirection: 'column',
+                                gap: '0.75rem',
+                                minHeight: '120px'
+                              }}
+                            >
+                              {/* Chat History */}
+                              {(Array.isArray(selectedRecord.respuestas) && selectedRecord.respuestas.length > 0) && (
+                                <div className="chat-history-internal" style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                                  {selectedRecord.respuestas.map((msg, idx) => (
+                                    <div key={idx} style={{ lineHeight: '1.4' }}>
+                                      <span style={{ color: msg.sectorColor || '#fff', fontWeight: '900', marginRight: '0.5rem', textTransform: 'uppercase', fontSize: '0.8rem' }}>
+                                        {msg.sectorName}:
+                                      </span>
+                                      <span style={{ color: '#eee', fontSize: '0.85rem' }}>{msg.text}</span>
+                                    </div>
+                                  ))}
+                                  <div style={{ height: '1px', background: '#222', margin: '0.5rem 0' }}></div>
+                                </div>
+                              )}
+
+                              {/* New Input Area */}
+                              {(activeSector === selectedRecord.sector || (Array.isArray(selectedRecord.tipoPrueba) ? selectedRecord.tipoPrueba.includes(activeSector) : selectedRecord.tipoPrueba === activeSector)) ? (
+                                <div style={{ display: 'flex', alignItems: 'flex-start', flex: 1 }}>
+                                  <span style={{ color: SECTORS.find(s => s.id === activeSector)?.color || '#fff', fontWeight: '900', marginRight: '0.5rem', textTransform: 'uppercase', fontSize: '0.8rem', paddingTop: '1px' }}>
+                                    {SECTORS.find(s => s.id === activeSector)?.label || 'SECTOR'}:
+                                  </span>
+                                  <textarea 
+                                    className="auto-expand"
+                                    style={{ 
+                                      flex: 1, 
+                                      background: 'transparent', 
+                                      border: 'none', 
+                                      color: '#fff',
+                                      outline: 'none',
+                                      resize: 'none',
+                                      fontSize: '0.85rem',
+                                      lineHeight: '1.4',
+                                      fontFamily: 'inherit',
+                                      padding: 0,
+                                      margin: 0,
+                                      minHeight: '40px'
+                                    }}
+                                    placeholder="Escribe tu duda o consulta aquí..."
+                                    value={selectedRecord.tempResponse || ''}
+                                    onChange={(e) => handleTextAreaChange(e, 'tempResponse', setSelectedRecord, selectedRecord)}
+                                  />
+                                </div>
+                              ) : (
+                                <div style={{ color: '#666', fontSize: '0.85rem', fontStyle: 'italic', marginTop: selectedRecord.respuestas?.length ? 0 : '1rem' }}>
+                                  {selectedRecord.respuestas?.length === 0 ? "No hay consultas registradas aún." : "Las áreas involucradas responderán aquí."}
+                                </div>
+                              )}
+                            </div>
+
+                            {/* Submit Button */}
+                            {(activeSector === selectedRecord.sector || (Array.isArray(selectedRecord.tipoPrueba) ? selectedRecord.tipoPrueba.includes(activeSector) : selectedRecord.tipoPrueba === activeSector)) && (
+                              <button 
+                                className="submit-btn"
+                                style={{ margin: '1rem 0 0 auto', width: 'auto', padding: '0.8rem 2.5rem', fontSize: '0.85rem', background: '#fff', color: '#000', border: 'none', fontWeight: '900', borderRadius: '10px' }}
+                                onClick={() => handleSaveResponse(selectedRecord.id, selectedRecord.tempResponse)}
+                              >
+                                ENVIAR MENSAJE
+                              </button>
+                            )}
                           </div>
                         </>
                       ) : (
@@ -2474,6 +2682,7 @@ const RegsApp = () => {
                         <div className="item-info">
                           <div className="item-type-label">
                             {activeSector === 'rrhh' ? '👤 REGISTRO DE PERSONAL' :
+                             activeSector === 'marketing' ? '📢 AVISO DE MARKETING' :
                              (record.type === 'report' || record.tipo === 'report') ? '💻 PRUEBA DE DESARROLLO' : 
                              (record.type === 'material' || record.tipo === 'material') ? '📦 INGRESO DE MATERIAL' : 
                              (record.type === 'despacho-franquicias' || record.tipo === 'despacho-franquicias') ? '🚚 DESPACHO A FRANQUICIAS' :
