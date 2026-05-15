@@ -27,7 +27,7 @@ const SECTORS = [
   { id: 'calidad', label: 'Calidad', icon: ShieldCheck, color: '#10b981', description: 'Auditorias y controles de calidad', isLocked: false },
   // { id: 'rrhh', label: 'RR.HH', icon: Users, color: '#6366f1', description: 'Gestión de personal y talento', isLocked: false },
   { id: 'marketing', label: 'Marketing', icon: Megaphone, color: '#d946ef', description: 'Estrategia y comunicación de marca', isLocked: false },
-  { id: 'proveedores', label: 'Proveedores', icon: Truck, color: '#f59e0b', description: 'Gestión y evaluación de proveedores', isLocked: true },
+  { id: 'proveedores', label: 'Proveedores', icon: Truck, color: '#f59e0b', description: 'Gestión y evaluación de proveedores', isLocked: false },
   { id: 'produccion', label: 'Produccion', icon: HardHat, color: '#ef4444', description: 'Registros de linea y rendimiento', isLocked: false },
   { id: 'logistica', label: 'Logistica', icon: Package, color: '#8b5cf6', description: 'Control de despacho y flota', isLocked: false },
   { id: 'mantenimiento', label: 'Mantenimiento', icon: Settings, color: '#6b7280', description: 'Preventivos y correctivos de planta', isLocked: false },
@@ -464,7 +464,7 @@ const RegsApp = () => {
         await supabase.from('registros').insert([{ 
           tipo: 'stock_materias_primas', 
           datos: stockList, 
-          sector: 'produccion', 
+          sector: 'proveedores', 
           producto: 'SISTEMA STOCK', 
           codigo: 'STK-GLOBAL' 
         }]);
@@ -689,6 +689,8 @@ const RegsApp = () => {
       setActiveSubTab('correctivo');
     } else if (activeSector === 'produccion' && activeSubTab === 'form') {
       setActiveSubTab('history');
+    } else if (activeSector === 'proveedores' && activeSubTab === 'form') {
+      setActiveSubTab('stock-mercaderia');
     }
   }, [activeSector, activeSubTab]);
 
@@ -2123,6 +2125,56 @@ const RegsApp = () => {
                   );
                 })()}
               </>
+            ) : activeSector === 'proveedores' ? (
+              <>
+                {(() => {
+                  const sector = SECTORS.find(s => s.id === activeSector);
+                  const sColor = sector?.color || '#fff';
+                  const sRgb = hexToRgb(sColor);
+                  const btnStyle = { '--accent': sColor, '--accent-rgb': sRgb };
+
+                  return (
+                    <>
+                      <button 
+                        onClick={() => { setActiveSubTab('stock-mercaderia'); setSelectedRecord(null); }}
+                        className={`sub-tab-btn ${activeSubTab === 'stock-mercaderia' ? 'active' : ''}`}
+                        style={{ ...btnStyle, backgroundColor: '#10b981', color: '#fff', fontWeight: '900' }}
+                      >
+                        <Package size={24} />
+                        <span className="sub-tab-label">STOCK MERCADERIA</span>
+                        {activeSubTab === 'stock-mercaderia' && <motion.div layoutId="active-pill" className="sub-tab-active-bg" style={{ background: '#10b981' }} />}
+                      </button>
+                      <button 
+                        onClick={() => { setActiveSubTab('materials'); setSelectedRecord(null); }}
+                        className={`sub-tab-btn ${activeSubTab === 'materials' ? 'active' : ''}`}
+                        style={btnStyle}
+                      >
+                        <Package size={24} />
+                        <span className="sub-tab-label">INGRESO MATERIA</span>
+                        {activeSubTab === 'materials' && <motion.div layoutId="active-pill" className="sub-tab-active-bg" />}
+                      </button>
+                      <button 
+                        onClick={() => { setActiveSubTab('history'); setSelectedRecord(null); }}
+                        className={`sub-tab-btn ${activeSubTab === 'history' ? 'active' : ''}`}
+                        style={btnStyle}
+                      >
+                        <History size={24} />
+                        <span className="sub-tab-label">VER HISTORIAL</span>
+                        {activeSubTab === 'history' && <motion.div layoutId="active-pill" className="sub-tab-active-bg" />}
+                      </button>
+                      <button 
+                        onClick={() => { setActiveSubTab('personal'); setFormData(prev => ({...prev, tipoPrueba: 'rrhh'})); setSelectedRecord(null); }}
+                        className={`sub-tab-btn ${activeSubTab === 'personal' ? 'active' : ''}`}
+                        style={btnStyle}
+                      >
+                        <Users size={24} />
+                        <span className="sub-tab-label">PERSONAL</span>
+                        {activeSubTab === 'personal' && <motion.div layoutId="active-pill" className="sub-tab-active-bg" />}
+                      </button>
+                    </>
+                  );
+                })()}
+              </>
             ) : activeSector === 'produccion' ? (
               <>
                 {(() => {
@@ -2148,15 +2200,6 @@ const RegsApp = () => {
                       >
                         <HardHat size={24} />
                         <span className="sub-tab-label">SISTEMA MES</span>
-                      </button>
-                      <button 
-                        onClick={() => { setActiveSubTab('stock-mercaderia'); setSelectedRecord(null); }}
-                        className={`sub-tab-btn ${activeSubTab === 'stock-mercaderia' ? 'active' : ''}`}
-                        style={{ ...btnStyle, backgroundColor: '#10b981', color: '#fff', fontWeight: '900' }}
-                      >
-                        <Package size={24} />
-                        <span className="sub-tab-label">STOCK MERCADERIA</span>
-                        {activeSubTab === 'stock-mercaderia' && <motion.div layoutId="active-pill" className="sub-tab-active-bg" style={{ background: '#10b981' }} />}
                       </button>
                       <button 
                         onClick={() => { setActiveSubTab('history'); setSelectedRecord(null); }}
