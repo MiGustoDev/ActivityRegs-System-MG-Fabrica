@@ -16,7 +16,7 @@ import {
   ClipboardCheck, Settings, Eye, ShieldCheck, Truck, Package, 
   Utensils, CookingPot, Layers, Puzzle, Droplet, ArrowLeft,
   ChevronRight, ChevronDown, AlertCircle, AlertTriangle, Download, Lock, Store, Thermometer, Calendar,
-  Users, Megaphone, LayoutGrid, Wrench, ExternalLink, Home, QrCode, Monitor, RefreshCw, Search, Mail, ShoppingCart, CheckCircle, Info, MoreVertical, GraduationCap, Map
+  Users, Megaphone, LayoutGrid, Wrench, ExternalLink, Home, QrCode, Monitor, RefreshCw, Search, Mail, ShoppingCart, CheckCircle, Info, MoreVertical, GraduationCap, Map, Copy, Check
 } from 'lucide-react';
 import html2pdf from 'html2pdf.js';
 import { supabase } from './supabase';
@@ -28,21 +28,21 @@ import ModoChoferTracker from './PlannerRecorridoJuan/ModoChoferTracker';
 
 
 const SECTORS = [
-  { id: 'desarrollo', label: 'Desarrollo', icon: ClipboardCheck, color: '#3b82f6', description: 'Informes de prueba y recepción de mercaderia', isLocked: false },
-  { id: 'calidad', label: 'Calidad', icon: ShieldCheck, color: '#10b981', description: 'Auditorias y controles de calidad', isLocked: false },
+  { id: 'desarrollo', label: 'Desarrollo', icon: ClipboardCheck, color: '#3b82f6', description: 'Informes de prueba y recepción de mercaderia', isLocked: false, bgImage: 'sectores/desarrollo.png' },
+  { id: 'calidad', label: 'Calidad', icon: ShieldCheck, color: '#10b981', description: 'Auditorias y controles de calidad', isLocked: false, bgImage: 'sectores/calidad.png' },
   // { id: 'rrhh', label: 'RR.HH', icon: Users, color: '#6366f1', description: 'Gestión de personal y talento', isLocked: false },
-  { id: 'marketing', label: 'Marketing', icon: Megaphone, color: '#d946ef', description: 'Estrategia y comunicación de marca', isLocked: false },
-  { id: 'proveedores', label: 'Proveedores', icon: Truck, color: '#f59e0b', description: 'Gestión y evaluación de proveedores', isLocked: false },
-  { id: 'produccion', label: 'Produccion', icon: HardHat, color: '#ef4444', description: 'Registros de linea y rendimiento', isLocked: false },
-  { id: 'logistica', label: 'Logistica', icon: Package, color: '#8b5cf6', description: 'Control de despacho y flota', isLocked: false },
-  { id: 'mantenimiento', label: 'Mantenimiento', icon: Settings, color: '#6b7280', description: 'Preventivos y correctivos de planta', isLocked: false },
-  { id: 'mesa-carnes', label: 'Mesa de Carnes', icon: Utensils, color: '#ec4899', description: 'Control de lotes y desposte', isLocked: false },
-  { id: 'cocina', label: 'Cocina', icon: CookingPot, color: '#f97316', description: 'Elaboración y planillas térmicas', isLocked: false },
-  { id: 'picadillo', label: 'Picadillo', icon: Layers, color: '#06b6d4', description: 'Mezcla y balance de ingredientes', isLocked: false },
-  { id: 'armado', label: 'Armado', icon: Puzzle, color: '#84cc16', description: 'Ensamble y finalización de producto', isLocked: false },
-  { id: 'salsas', label: 'Salsas', icon: Droplet, color: '#0ea5e9', description: 'Dosificación y control de mezclas', isLocked: false },
-  { id: 'compras', label: 'Compras', icon: ShoppingCart, color: '#06b6d4', description: 'Gestión de compras y pedidos', isLocked: false },
-  { id: 'sistemas', label: 'Sistemas', icon: Monitor, color: '#6366f1', description: 'Gestión IT y soporte técnico', isLocked: false, url: 'https://migusto.com.ar/fabrica/sistemas' },
+  { id: 'marketing', label: 'Marketing', icon: Megaphone, color: '#d946ef', description: 'Estrategia y comunicación de marca', isLocked: false, bgImage: 'sectores/marketing.png' },
+  { id: 'proveedores', label: 'Proveedores', icon: Package, color: '#f59e0b', description: 'Gestión y evaluación de proveedores', isLocked: false, bgImage: 'sectores/proveedores.png' },
+  { id: 'produccion', label: 'Produccion', icon: HardHat, color: '#ef4444', description: 'Registros de linea y rendimiento', isLocked: false, bgImage: 'sectores/armado.png' },
+  { id: 'logistica', label: 'Logistica', icon: Truck, color: '#8b5cf6', description: 'Control de despacho y flota', isLocked: false, bgImage: 'sectores/logistica.png' },
+  { id: 'mantenimiento', label: 'Mantenimiento', icon: Settings, color: '#6b7280', description: 'Preventivos y correctivos de planta', isLocked: false, bgImage: 'sectores/armado.png' },
+  { id: 'mesa-carnes', label: 'Mesa de Carnes', icon: Utensils, color: '#ec4899', description: 'Control de lotes y desposte', isLocked: false, bgImage: 'sectores/carnes.png' },
+  { id: 'cocina', label: 'Cocina', icon: CookingPot, color: '#f97316', description: 'Elaboración y planillas térmicas', isLocked: false, bgImage: 'sectores/cocina.png' },
+  { id: 'picadillo', label: 'Picadillo', icon: Utensils, color: '#06b6d4', description: 'Mezcla y balance de ingredientes', isLocked: false, bgImage: 'sectores/cocina.png' },
+  { id: 'armado', label: 'Armado', icon: Puzzle, color: '#84cc16', description: 'Ensamble y finalización de producto', isLocked: false, bgImage: 'sectores/armado.png' },
+  { id: 'salsas', label: 'Salsas', icon: Droplet, color: '#0ea5e9', description: 'Dosificación y control de mezclas', isLocked: false, bgImage: 'sectores/cocina.png' },
+  { id: 'compras', label: 'Compras', icon: ShoppingCart, color: '#06b6d4', description: 'Gestión de compras y pedidos', isLocked: false, bgImage: 'sectores/proveedores.png' },
+  { id: 'sistemas', label: 'Sistemas', icon: Monitor, color: '#6366f1', description: 'Gestión IT y soporte técnico', isLocked: false, url: 'https://migusto.com.ar/fabrica/sistemas', bgImage: 'sectores/sistemas.png' },
 ];
 
 const PEDIDO_SECTORS = ['cocina', 'picadillo', 'armado', 'salsas', 'mesa-carnes'];
@@ -393,13 +393,34 @@ const initialCorrectiveForm = () => ({
 const RegsApp = () => {
   const navigate = useNavigate();
   const location = useLocation();
+
+  const isChoferRoute = location.pathname.includes('chofer') || 
+                        window.location.href.includes('chofer') || 
+                        window.location.hash.includes('chofer') || 
+                        window.location.search.includes('chofer');
+
   const sectorMatch = useMatch('/:sectorId');
   const sectorId = sectorMatch?.params.sectorId;
   const [activeSubTab, setActiveSubTab] = useState('form')
+  const [copiedSectorId, setCopiedSectorId] = useState(null);
   const [isUnlocked, setIsUnlocked] = useState(() => localStorage.getItem('regsapp_admin_unlocked') === 'true');
   const [pin, setPin] = useState('');
   const [showTools, setShowTools] = useState(false);
   const ADMIN_PIN = '2026'; // Nueva clave solicitada
+
+  const handleCopySectorUrl = (e, item) => {
+    e.stopPropagation();
+    let baseUrl = `${window.location.origin}${window.location.pathname}`;
+    if (baseUrl.includes('localhost') || baseUrl.includes('127.0.0.1')) {
+      baseUrl = 'https://migusto.com.ar/fabrica/DataCenter/';
+    }
+    if (!baseUrl.endsWith('/')) baseUrl += '/';
+    
+    const url = item.url ? item.url : `${baseUrl}#/${item.id}`;
+    navigator.clipboard.writeText(url);
+    setCopiedSectorId(item.id);
+    setTimeout(() => setCopiedSectorId(null), 2000);
+  };
 
   const activeSector = sectorId || null;
   const isMenuView = !sectorId || location.pathname === '/';
@@ -744,9 +765,7 @@ const RegsApp = () => {
 
     const targetDefault = firstTabMap[activeSector];
     if (targetDefault) {
-      if (activeSubTab === 'form' || location.state?.fromDashboard) {
-        setActiveSubTab(targetDefault);
-      }
+      setActiveSubTab(targetDefault);
     }
   }, [activeSector]);
 
@@ -2307,11 +2326,20 @@ const copyReportForEmail = (record) => {
     setter({...currentData, [field]: element.value});
   }
 
+  if (isChoferRoute) {
+    return <ModoChoferTracker />;
+  }
+
   return (
     <>
       <Routes>
       <Route path="/" element={
         <div className="landing-page-enterprise">
+          <div className="industrial-board-bg">
+            <div className="board-grid-overlay"></div>
+            <div className="board-circuit-lines"></div>
+            <div className="board-ambient-glow"></div>
+          </div>
           <div className="enterprise-bg-glow"></div>
           
           {!isUnlocked ? (
@@ -2363,13 +2391,13 @@ const copyReportForEmail = (record) => {
                     <img src={`${import.meta.env.BASE_URL}Logo_Mi_Gusto_2025.png`} alt="Mi Gusto" className="brand-logo" />
                   <div className="brand-divider"></div>
                   <div className="brand-text">
-                    <h3>Módulos de información</h3>
+                    <h3>Módulos de sectores en fabrica</h3>
                   </div>
                 </div>
                 
                 <div className="sidebar-info">
                   <h1>Centro de Operaciones</h1>
-                  <p>Seleccione la unidad de negocio para iniciar la carga de informes de cumplimiento y operativa diaria.</p>
+                  <p>Seleccione el area de trabajo para iniciar la carga de informes, stock, novedades, planillas, pedidos, controles, auditorias</p>
                   
                   <div className="sidebar-actions" style={{ marginTop: '1.5rem', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
                     <button 
@@ -2454,9 +2482,6 @@ const copyReportForEmail = (record) => {
                     <div className="pulse"></div>
                     <span>SISTEMAS ACTIVOS</span>
                   </div>
-                  <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
-                    <p style={{ margin: 0, opacity: 0.5, fontSize: '0.7rem' }}>© 2026 MI GUSTO | DEPARTAMENTO DE SISTEMAS</p>
-                  </div>
                 </div>
               </motion.div>
 
@@ -2503,6 +2528,51 @@ const copyReportForEmail = (record) => {
                           <span>PRÓXIMAMENTE</span>
                         </div>
                       )}
+                      {!item.isLocked && (
+                        <button
+                          type="button"
+                          className="copy-link-btn"
+                          title="Copiar enlace directo a este sector"
+                          onClick={(e) => handleCopySectorUrl(e, item)}
+                          style={{
+                            position: 'absolute',
+                            top: '12px',
+                            right: '12px',
+                            background: copiedSectorId === item.id ? 'rgba(16, 185, 129, 0.95)' : '#0d1117',
+                            border: `1px solid ${copiedSectorId === item.id ? '#10b981' : 'rgba(255, 255, 255, 0.25)'}`,
+                            borderRadius: '8px',
+                            padding: '7px',
+                            color: '#ffffff',
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            zIndex: 10,
+                            boxShadow: '0 2px 8px rgba(0,0,0,0.5)',
+                            transition: 'all 0.2s ease'
+                          }}
+                          onMouseEnter={(e) => {
+                            if (copiedSectorId !== item.id) {
+                              e.currentTarget.style.background = 'rgba(255, 255, 255, 0.95)';
+                              e.currentTarget.style.color = '#000000';
+                            }
+                          }}
+                          onMouseLeave={(e) => {
+                            if (copiedSectorId !== item.id) {
+                              e.currentTarget.style.background = 'rgba(13, 17, 23, 0.85)';
+                              e.currentTarget.style.color = '#ffffff';
+                            }
+                          }}
+                        >
+                          {copiedSectorId === item.id ? <Check size={15} strokeWidth={2.5} /> : <Copy size={15} strokeWidth={2.2} />}
+                        </button>
+                      )}
+                      {item.bgImage && (
+                        <div 
+                          className="tile-bg-image" 
+                          style={{ backgroundImage: `url(${import.meta.env.BASE_URL}${item.bgImage})` }} 
+                        />
+                      )}
                       <div className="tile-glow"></div>
                       <div className="tile-icon-box">
                         <item.icon size={26} />
@@ -2516,6 +2586,12 @@ const copyReportForEmail = (record) => {
                       </div>
                     </motion.button>
                   ))}
+                </div>
+
+                <div className="credits-footer" style={{ marginTop: 'auto', paddingTop: '2.5rem', paddingBottom: '0.25rem', textAlign: 'center', width: '100%' }}>
+                  <p style={{ margin: 0, opacity: 0.45, fontSize: '0.62rem', letterSpacing: '0.12em', textTransform: 'uppercase', color: '#ffffff', fontWeight: '500' }}>
+                    Desarrollado por el departamento de SISTEMAS | © 2026 MI GUSTO
+                  </p>
                 </div>
               </div>
             </div>

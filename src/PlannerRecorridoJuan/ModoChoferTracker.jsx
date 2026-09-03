@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Truck, Navigation, Play, Square, AlertCircle, CheckCircle, Shield, Wifi, BatteryCharging } from 'lucide-react';
+import { Truck, Play, Square, BatteryCharging } from 'lucide-react';
 import { supabase } from '../supabase';
 
 const CAMIONES_LIST = [
@@ -21,7 +21,6 @@ export default function ModoChoferTracker() {
   const watchIdRef = useRef(null);
   const wakeLockRef = useRef(null);
 
-  // Request Screen Wake Lock to keep display active
   const requestWakeLock = async () => {
     try {
       if ('wakeLock' in navigator) {
@@ -39,84 +38,110 @@ export default function ModoChoferTracker() {
     }
   };
 
-  const startTracking = () => {
-    if (!navigator.geolocation) {
-      setStatusMsg('❌ Tu navegador no soporta geolocalización GPS.');
-      return;
-    }
-
-    setStatusMsg('🛰️ Obteniendo señal de GPS...');
-    requestWakeLock();
-
-    const options = {
-      enableHighAccuracy: true,
-      timeout: 15000,
-      maximumAge: 0
+  const broadcastPosition = async (latitude, longitude, spd = 0, acc = 10) => {
+    const now = new Date();
+    const time24h = now.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
+    
+    const coordData = {
+      lat: latitude,
+      lng: longitude,
+      speed: spd ? Math.round(spd * 3.6) : 0,
+      accuracy: Math.round(acc),
+      updatedAt: time24h,
+      timestamp: Date.now()
     };
 
-    watchIdRef.current = navigator.geolocation.watchPosition(
-      (position) => {
-        const { latitude, longitude, speed: spd, accuracy: acc } = position.coords;
-        
-        const now = new Date();
-        const time24h = now.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
-        
-        const coordData = {
-          lat: latitude,
-          lng: longitude,
-          speed: spd ? Math.round(spd * 3.6) : 0, // m/s to km/h
-          accuracy: Math.round(acc),
-          updatedAt: time24h,
-          timestamp: Date.now()
-        };
+    setCurrentCoords(coordData);
+    setSpeed(coordData.speed);
+    setAccuracy(coordData.accuracy);
+    setUpdatesCount(prev => prev + 1);
+    setStatusMsg('🟢 Viaje en curso — transmitiendo posición en vivo');
 
-        setCurrentCoords(coordData);
-        setSpeed(coordData.speed);
-        setAccuracy(coordData.accuracy);
-        setUpdatesCount(prev => prev + 1);
-        setStatusMsg('🟢 Viaje en curso — transmitiendo posición en vivo');
+    // 1. Guardar en LocalStorage
+    try {
+      const liveStore = JSON.parse(localStorage.getItem('migusto_gps_live_v1') || '{}');
+      const currentTrk = liveStore[patente] || {};
+      const prevTrail = currentTrk.trail || [];
+      const newTrail = [...prevTrail, [latitude, longitude]];
 
-        // Broadcast live position & trail via LocalStorage
-        try {
-          const liveStore = JSON.parse(localStorage.getItem('migusto_gps_live_v1') || '{}');
-          const currentTrk = liveStore[patente] || {};
-          const prevTrail = currentTrk.trail || [];
-          const newTrail = [...prevTrail, [latitude, longitude]];
+      liveStore[patente] = {
+        patente,
+        ...coordData,
+        trail: newTrail
+      };
+      localStorage.setItem('migusto_gps_live_v1', JSON.stringify(liveStore));
+      window.dispatchEvent(new Event('storage'));
 
-          liveStore[patente] = {
+      // 2. Sincronización real con Supabase (tabla 'registros')
+      if (supabase) {
+        const { data: existing } = await supabase
+          .from('registros')
+          .select('id')
+          .eq('tipo', 'gps_live')
+          .eq('codigo', patente)
+          .maybeSingle();
+
+        const payload = {
+          tipo: 'gps_live',
+          codigo: patente,
+          datos: {
             patente,
             ...coordData,
             trail: newTrail
-          };
-          localStorage.setItem('migusto_gps_live_v1', JSON.stringify(liveStore));
-          window.dispatchEvent(new Event('migusto_gps_update'));
-
-          // Sincronizar en tiempo real con la nube Supabase para acceso remoto
-          if (supabase) {
-            supabase.from('gps_live').upsert({
-              patente,
-              lat: latitude,
-              lng: longitude,
-              speed: coordData.speed,
-              accuracy: coordData.accuracy,
-              trail: newTrail,
-              updated_at: new Date().toISOString()
-            }).then(({ error }) => {
-              if (error) console.error('Error Supabase GPS Sync:', error);
-            });
           }
-        } catch (e) {
-          console.error(e);
+        };
+
+        if (existing && existing.id) {
+          await supabase.from('registros').update(payload).eq('id', existing.id);
+        } else {
+          await supabase.from('registros').insert([payload]);
         }
+      }
+    } catch (e) {
+      console.error('Error enviando posicion GPS:', e);
+    }
+  };
+
+  const startTracking = () => {
+    setIsTracking(true);
+    setStatusMsg('🛰️ Obteniendo señal de GPS...');
+    requestWakeLock();
+
+    if (!navigator.geolocation) {
+      setStatusMsg('⚠️ Geolocalización no soportada en este navegador.');
+      return;
+    }
+
+    const options = {
+      enableHighAccuracy: true,
+      timeout: 20000,
+      maximumAge: 0
+    };
+
+    // 1. Inmediatamente intentar obtener posición actual
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const { latitude, longitude, speed: spd, accuracy: acc } = position.coords;
+        broadcastPosition(latitude, longitude, spd, acc);
       },
       (error) => {
-        console.error('GPS Error:', error);
-        setStatusMsg(`⚠️ Error de GPS: ${error.message}`);
+        console.warn('getCurrentPosition error/esperando GPS:', error);
       },
       options
     );
 
-    setIsTracking(true);
+    // 2. Escuchar cambios de posición continuos
+    watchIdRef.current = navigator.geolocation.watchPosition(
+      (position) => {
+        const { latitude, longitude, speed: spd, accuracy: acc } = position.coords;
+        broadcastPosition(latitude, longitude, spd, acc);
+      },
+      (error) => {
+        console.warn('Esperando señal GPS satelital:', error);
+        setStatusMsg(`🛰️ Obteniendo señal de GPS (${error.message || 'buscando satélite'})...`);
+      },
+      options
+    );
   };
 
   const stopTracking = () => {
@@ -181,24 +206,45 @@ export default function ModoChoferTracker() {
             <div>Lat: <strong style={{ color: '#f2f2f2' }}>{currentCoords.lat.toFixed(5)}</strong></div>
             <div>Lng: <strong style={{ color: '#f2f2f2' }}>{currentCoords.lng.toFixed(5)}</strong></div>
             <div>Velocidad: <strong style={{ color: '#38bdf8' }}>{speed} km/h</strong></div>
-            <div>Última transmisión: <strong style={{ color: '#22c55e' }}>{currentCoords.updatedAt}</strong></div>
+            <div>Transmisiones: <strong style={{ color: '#22c55e' }}>#{updatesCount} ({currentCoords.updatedAt})</strong></div>
           </div>
         )}
       </div>
 
       {/* Main Action Controls */}
       {!isTracking ? (
-        <button
-          onClick={startTracking}
-          style={{ width: '100%', background: '#22c55e', color: '#06210f', border: 'none', padding: '16px', borderRadius: '99px', fontSize: '16px', fontWeight: 800, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', boxShadow: '0 4px 14px rgba(34, 197, 94, 0.4)' }}
-        >
-          <Play size={20} fill="#06210f" /> Iniciar viaje
-        </button>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+          <button
+            onClick={startTracking}
+            style={{ width: '100%', background: '#22c55e', color: '#06210f', border: 'none', padding: '16px', borderRadius: '99px', fontSize: '16px', fontWeight: 800, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', boxShadow: '0 4px 14px rgba(34, 197, 94, 0.4)' }}
+          >
+            <Play size={20} fill="#06210f" /> Iniciar viaje
+          </button>
+          <button
+            onClick={async () => {
+              if (window.confirm('¿Deseas reiniciar los datos de GPS de los camiones para probar desde 0?')) {
+                localStorage.removeItem('migusto_gps_live_v1');
+                window.dispatchEvent(new Event('storage'));
+                setCurrentCoords(null);
+                setUpdatesCount(0);
+                setSpeed(0);
+                if (supabase) {
+                  await supabase.from('registros').delete().eq('tipo', 'gps_live');
+                }
+                setStatusMsg('✨ Datos de GPS reiniciados a 0');
+              }
+            }}
+            style={{ width: '100%', background: 'transparent', color: '#9a9a9a', border: '1px solid #272727', padding: '10px', borderRadius: '8px', fontSize: '12px', fontWeight: 600, cursor: 'pointer' }}
+          >
+            🧹 Limpiar camiones registrados (Reiniciar prueba a 0)
+          </button>
+        </div>
       ) : (
         <button
           onClick={stopTracking}
           style={{ width: '100%', background: '#ef4444', color: '#ffffff', border: 'none', padding: '16px', borderRadius: '99px', fontSize: '16px', fontWeight: 800, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', boxShadow: '0 4px 14px rgba(239, 68, 68, 0.4)' }}
         >
+
           <Square size={20} fill="#ffffff" /> Cerrar viaje
         </button>
       )}

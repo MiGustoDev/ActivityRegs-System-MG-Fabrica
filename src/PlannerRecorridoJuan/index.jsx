@@ -284,14 +284,17 @@ export default function PlannerRecorridoMain() {
         </button>
       </div>
 
-      {/* Render selected view */}
-      {activeMainTab === 'planificador' ? (
+      {/* Render selected view (todos se mantienen montados para conservar el rastreo activo) */}
+      <div style={{ display: activeMainTab === 'planificador' ? 'block' : 'none' }}>
         <PlanificadorRecorrido />
-      ) : activeMainTab === 'camion' ? (
+      </div>
+      <div style={{ display: activeMainTab === 'camion' ? 'block' : 'none' }}>
         <GestionCamion />
-      ) : (
+      </div>
+      <div style={{ display: activeMainTab === 'chofer' ? 'block' : 'none' }}>
         <ModoChoferTracker />
-      )}
+      </div>
     </div>
   );
 }
+

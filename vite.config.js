@@ -6,14 +6,13 @@ export default defineConfig({
   plugins: [react()],
   base: './',
   build: {
-    chunkSizeWarningLimit: 1600,
+    chunkSizeWarningLimit: 2500,
     rollupOptions: {
       output: {
         manualChunks: {
           vendor: ['react', 'react-dom', 'react-router-dom'],
-          leaflet: ['leaflet'],
-          xlsx: ['xlsx'],
-          chart: ['chart.js']
+          icons: ['lucide-react'],
+          motion: ['framer-motion']
         }
       }
     }

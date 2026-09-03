@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 
 // Constante para el almacenamiento local de Mantis
@@ -19,6 +20,7 @@ const pageTitles = {
 };
 
 export default function MantenimientoSector({ activeSector }) {
+  const navigate = useNavigate();
   // Estado principal de la base de datos local
   const [db, setDb] = useState(() => {
     try {
@@ -347,7 +349,7 @@ export default function MantenimientoSector({ activeSector }) {
           <div className="mantis-topbar">
             <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
               <button 
-                onClick={() => window.location.href = '/fabrica/DataCenter/'} 
+                onClick={() => navigate('/')} 
                 className="mantis-btn mantis-btn-secondary"
                 style={{ fontSize: '12px' }}
               >
