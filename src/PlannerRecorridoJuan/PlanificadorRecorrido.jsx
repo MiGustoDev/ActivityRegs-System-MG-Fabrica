@@ -63,29 +63,106 @@ export default function PlanificadorRecorrido() {
       } catch(e){}
     }
 
-    if (list.length > 0) {
-      pushGpsToIframeWindow(list);
-    }
+    // Siempre empujar la lista actualizada al iframe (incluso si está vacía) para limpiar o refrescar marcadores
+    pushGpsToIframeWindow(list);
   };
 
   useEffect(() => {
+    // 1. Carga inicial GPS
     syncGps();
 
-    let channel = null;
+    // 2. Suscripción por WebSocket en Tiempo Real para posiciones GPS
+    let gpsChannel = null;
     if (supabase) {
-      channel = supabase
-        .channel('gps_live_realtime_planner_v8')
+      gpsChannel = supabase
+        .channel('gps_live_realtime_planner_v9')
         .on('postgres_changes', { event: '*', schema: 'public', table: 'registros', filter: 'tipo=eq.gps_live' }, () => {
           syncGps();
         })
         .subscribe();
     }
 
-    const interval = setInterval(syncGps, 1000);
+    // 3. Listener de mensajes desde el iframe para guardar planner_state a Supabase
+    const handleIframeMessage = async (event) => {
+      if (!event.data || !event.data.type) return;
+      const { type, key, payload } = event.data;
+
+      if (type === 'SAVE_PLANNER_STATE_TO_SUPABASE' && supabase && key) {
+        try {
+          const { data: existing } = await supabase
+            .from('registros')
+            .select('id')
+            .eq('tipo', 'planner_state')
+            .eq('codigo', key)
+            .limit(1);
+
+          const record = {
+            tipo: 'planner_state',
+            codigo: key,
+            datos: { key, payload, updatedAt: new Date().toISOString() }
+          };
+
+          if (existing && existing.length > 0) {
+            await supabase.from('registros').update(record).eq('id', existing[0].id);
+          } else {
+            await supabase.from('registros').insert([record]);
+          }
+        } catch (e) {
+          console.error('Error guardando planner_state en Supabase:', e);
+        }
+      }
+    };
+
+    window.addEventListener('message', handleIframeMessage);
+
+    // 4. Cargar todos los estados de planificación compartidos desde Supabase
+    const syncPlannerStatesFromSupabase = async () => {
+      if (!supabase) return;
+      try {
+        const { data, error } = await supabase
+          .from('registros')
+          .select('codigo, datos')
+          .eq('tipo', 'planner_state');
+
+        if (!error && data && data.length > 0) {
+          data.forEach(item => {
+            if (item.codigo && item.datos && item.datos.payload !== undefined) {
+              const val = typeof item.datos.payload === 'string' ? item.datos.payload : JSON.stringify(item.datos.payload);
+              localStorage.setItem(item.codigo, val);
+            }
+          });
+          if (iframeRef.current && iframeRef.current.contentWindow) {
+            iframeRef.current.contentWindow.postMessage({ type: 'SUPABASE_PLANNER_STATES_UPDATED' }, '*');
+          }
+        }
+      } catch (e) {
+        console.error('Error leyendo planner_state de Supabase:', e);
+      }
+    };
+
+    syncPlannerStatesFromSupabase();
+
+    // 5. Suscripción Realtime a cambios de planificación creados por otros usuarios
+    let stateChannel = null;
+    if (supabase) {
+      stateChannel = supabase
+        .channel('planner_states_realtime_v1')
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'registros', filter: 'tipo=eq.planner_state' }, (payload) => {
+          if (payload && payload.new && payload.new.codigo && payload.new.datos) {
+            const val = typeof payload.new.datos.payload === 'string' ? payload.new.datos.payload : JSON.stringify(payload.new.datos.payload);
+            localStorage.setItem(payload.new.codigo, val);
+            if (iframeRef.current && iframeRef.current.contentWindow) {
+              iframeRef.current.contentWindow.postMessage({ type: 'SUPABASE_PLANNER_STATES_UPDATED' }, '*');
+            }
+          }
+        })
+        .subscribe();
+    }
 
     return () => {
-      clearInterval(interval);
-      if (channel && supabase) supabase.removeChannel(channel);
+      window.removeEventListener('message', handleIframeMessage);
+      if (gpsChannel && supabase) supabase.removeChannel(gpsChannel);
+      if (stateChannel && supabase) supabase.removeChannel(stateChannel);
     };
   }, []);
 

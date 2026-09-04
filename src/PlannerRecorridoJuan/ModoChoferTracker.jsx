@@ -38,7 +38,11 @@ export default function ModoChoferTracker() {
     }
   };
 
+  const lastBroadcastTimeRef = useRef(0);
+
   const broadcastPosition = async (latitude, longitude, spd = 0, acc = 10) => {
+    const nowTimestamp = Date.now();
+    
     const now = new Date();
     const time24h = now.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
     
@@ -48,7 +52,7 @@ export default function ModoChoferTracker() {
       speed: spd ? Math.round(spd * 3.6) : 0,
       accuracy: Math.round(acc),
       updatedAt: time24h,
-      timestamp: Date.now()
+      timestamp: nowTimestamp
     };
 
     setCurrentCoords(coordData);
@@ -56,6 +60,12 @@ export default function ModoChoferTracker() {
     setAccuracy(coordData.accuracy);
     setUpdatesCount(prev => prev + 1);
     setStatusMsg('🟢 Viaje en curso — transmitiendo posición en vivo');
+
+    // Throttle de seguridad: enviar a la nube como máximo 1 vez cada 3 segundos por camión para cuidar cuota
+    if (nowTimestamp - lastBroadcastTimeRef.current < 3000) {
+      return;
+    }
+    lastBroadcastTimeRef.current = nowTimestamp;
 
     // 1. Guardar en LocalStorage
     try {
@@ -74,27 +84,31 @@ export default function ModoChoferTracker() {
 
       // 2. Sincronización real con Supabase (tabla 'registros')
       if (supabase) {
-        const { data: existing } = await supabase
-          .from('registros')
-          .select('id')
-          .eq('tipo', 'gps_live')
-          .eq('codigo', patente)
-          .maybeSingle();
+        try {
+          const { data: existing, error: selectErr } = await supabase
+            .from('registros')
+            .select('id')
+            .eq('tipo', 'gps_live')
+            .eq('codigo', patente)
+            .limit(1);
 
-        const payload = {
-          tipo: 'gps_live',
-          codigo: patente,
-          datos: {
-            patente,
-            ...coordData,
-            trail: newTrail
+          const payload = {
+            tipo: 'gps_live',
+            codigo: patente,
+            datos: {
+              patente,
+              ...coordData,
+              trail: newTrail
+            }
+          };
+
+          if (!selectErr && existing && existing.length > 0) {
+            await supabase.from('registros').update(payload).eq('id', existing[0].id);
+          } else {
+            await supabase.from('registros').insert([payload]);
           }
-        };
-
-        if (existing && existing.id) {
-          await supabase.from('registros').update(payload).eq('id', existing.id);
-        } else {
-          await supabase.from('registros').insert([payload]);
+        } catch (supaErr) {
+          console.error('Error insertando/actualizando en Supabase:', supaErr);
         }
       }
     } catch (e) {
@@ -118,7 +132,10 @@ export default function ModoChoferTracker() {
       maximumAge: 0
     };
 
-    // 1. Inmediatamente intentar obtener posición actual
+    // Obteniendo señal GPS real satelital
+    setStatusMsg('🛰️ Obteniendo señal de GPS satelital...');
+
+    // 1. Obtención de posición real inicial
     navigator.geolocation.getCurrentPosition(
       (position) => {
         const { latitude, longitude, speed: spd, accuracy: acc } = position.coords;
@@ -126,19 +143,20 @@ export default function ModoChoferTracker() {
       },
       (error) => {
         console.warn('getCurrentPosition error/esperando GPS:', error);
+        setStatusMsg(`🛰️ Buscando señal GPS de dispositivo (${error.message || 'Esperando ubicación'})...`);
       },
       options
     );
 
-    // 2. Escuchar cambios de posición continuos
+    // 2. Transmisión continua por satélite
     watchIdRef.current = navigator.geolocation.watchPosition(
       (position) => {
         const { latitude, longitude, speed: spd, accuracy: acc } = position.coords;
         broadcastPosition(latitude, longitude, spd, acc);
       },
       (error) => {
-        console.warn('Esperando señal GPS satelital:', error);
-        setStatusMsg(`🛰️ Obteniendo señal de GPS (${error.message || 'buscando satélite'})...`);
+        console.warn('Esperando actualización satelital:', error);
+        setStatusMsg(`🛰️ Buscando cobertura GPS (${error.message || 'Satélite en búsqueda'})...`);
       },
       options
     );
@@ -211,15 +229,15 @@ export default function ModoChoferTracker() {
         )}
       </div>
 
-      {/* Main Action Controls */}
       {!isTracking ? (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
           <button
             onClick={startTracking}
             style={{ width: '100%', background: '#22c55e', color: '#06210f', border: 'none', padding: '16px', borderRadius: '99px', fontSize: '16px', fontWeight: 800, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', boxShadow: '0 4px 14px rgba(34, 197, 94, 0.4)' }}
           >
-            <Play size={20} fill="#06210f" /> Iniciar viaje
+            <Play size={20} fill="#06210f" /> Iniciar viaje (GPS en Vivo)
           </button>
+
           <button
             onClick={async () => {
               if (window.confirm('¿Deseas reiniciar los datos de GPS de los camiones para probar desde 0?')) {

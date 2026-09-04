@@ -2,13 +2,38 @@ import React, { useState } from 'react';
 import PlanificadorRecorrido from './PlanificadorRecorrido';
 import GestionCamion from './GestionCamion';
 import ModoChoferTracker from './ModoChoferTracker';
-import { Map, Truck, Navigation, CheckCircle, Copy, X, ExternalLink } from 'lucide-react';
+import { Map, Truck, Navigation, CheckCircle, Copy, X, ExternalLink, Trash2 } from 'lucide-react';
+import { supabase } from '../supabase';
 
 export default function PlannerRecorridoMain() {
   const [activeMainTab, setActiveMainTab] = useState('planificador'); // 'planificador' | 'camion' | 'chofer'
   const [showChoferModal, setShowChoferModal] = useState(false);
   const [choferUrl, setChoferUrl] = useState('');
   const [copiedAgain, setCopiedAgain] = useState(false);
+  const [clearing, setClearing] = useState(false);
+
+  const handleLimpiarGpsLive = async () => {
+    if (!window.confirm('¿Seguro que querés limpiar todas las posiciones actuales de camiones en vivo en el mapa?')) return;
+    setClearing(true);
+    try {
+      // 1. Limpiar LocalStorage
+      localStorage.removeItem('migusto_gps_live_v1');
+      
+      // 2. Limpiar Supabase registros gps_live
+      if (supabase) {
+        await supabase.from('registros').delete().eq('tipo', 'gps_live');
+      }
+
+      alert(' Posiciones de camiones limpiadas correctamente. El mapa se actualizó.');
+      window.location.reload();
+    } catch (e) {
+      console.error('Error al limpiar GPS:', e);
+      alert('Se limpió el almacenamiento local.');
+      window.location.reload();
+    } finally {
+      setClearing(false);
+    }
+  };
 
   const handleOpenChoferModal = () => {
     const baseUrl = window.location.href.split('#')[0].split('?')[0].replace(/\/$/, '');
@@ -281,6 +306,29 @@ export default function PlannerRecorridoMain() {
         >
           <Copy size={16} />
           <span>Copiar Enlace para Choferes (/chofer)</span>
+        </button>
+
+        <button
+          onClick={handleLimpiarGpsLive}
+          disabled={clearing}
+          title="Borrar posiciones actuales de camiones en mapa"
+          style={{
+            background: 'rgba(239, 68, 68, 0.15)',
+            color: '#ef4444',
+            border: '1px solid #ef4444',
+            padding: '10px 18px',
+            borderRadius: '99px',
+            fontSize: '12.5px',
+            fontWeight: 700,
+            cursor: clearing ? 'not-allowed' : 'pointer',
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '6px',
+            transition: 'all 0.2s'
+          }}
+        >
+          <Trash2 size={16} />
+          <span>{clearing ? 'Limpiando...' : 'Borrar Posiciones Mapa'}</span>
         </button>
       </div>
 

@@ -750,7 +750,7 @@ const RegsApp = () => {
 
     const firstTabMap = {
       'calidad': 'temperatura-camaras',
-      'logistica': 'pedido-materiales',
+      'logistica': 'planificador-recorrido',
       'proveedores': 'stock-mercaderia',
       'rrhh': 'history',
       'mantenimiento': 'mantis',
@@ -2388,8 +2388,41 @@ const copyReportForEmail = (record) => {
                 className="enterprise-sidebar"
               >
                 <div className="sidebar-brand">
-                    <img src={`${import.meta.env.BASE_URL}Logo_Mi_Gusto_2025.png`} alt="Mi Gusto" className="brand-logo" />
-                  <div className="brand-divider"></div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
+                      <img src={`${import.meta.env.BASE_URL}Logo_Mi_Gusto_2025.png`} alt="Mi Gusto" className="brand-logo" style={{ height: '42px' }} />
+                      
+                      {/* Premium High-End ORBITAL Brand Badge */}
+                      <div style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '9px',
+                        background: 'linear-gradient(135deg, rgba(30, 41, 59, 0.85) 0%, rgba(15, 23, 42, 0.95) 100%)',
+                        border: '1px solid rgba(56, 189, 248, 0.35)',
+                        padding: '7px 16px',
+                        borderRadius: '12px',
+                        boxShadow: '0 4px 20px rgba(14, 165, 233, 0.2), inset 0 1px 1px rgba(255,255,255,0.15)',
+                        backdropFilter: 'blur(10px)'
+                      }}>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                          <Layers size={18} color="#38bdf8" style={{ filter: 'drop-shadow(0 0 6px rgba(56,189,248,0.8))' }} />
+                        </div>
+                        <span style={{
+                          fontSize: '1.15rem',
+                          fontWeight: '900',
+                          letterSpacing: '0.22em',
+                          background: 'linear-gradient(180deg, #ffffff 0%, #cbd5e1 100%)',
+                          WebkitBackgroundClip: 'text',
+                          WebkitTextFillColor: 'transparent',
+                          fontFamily: 'Inter, sans-serif',
+                          lineHeight: 1
+                        }}>
+                          ORBITAL
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="brand-divider" style={{ marginTop: '4px' }}></div>
                   <div className="brand-text">
                     <h3>Módulos de sectores en fabrica</h3>
                   </div>
@@ -2509,7 +2542,7 @@ const copyReportForEmail = (record) => {
                         // Set initial default tab to match the FIRST button of each sector
                         let defaultTab = 'form';
                         if (item.id === 'calidad') defaultTab = 'temperatura-camaras';
-                        else if (item.id === 'logistica') defaultTab = 'pedido-materiales';
+                        else if (item.id === 'logistica') defaultTab = 'planificador-recorrido';
                         else if (item.id === 'proveedores') defaultTab = 'stock-mercaderia';
                         else if (item.id === 'rrhh') defaultTab = 'history';
                         else if (item.id === 'mantenimiento') defaultTab = 'correctivo';
@@ -2902,15 +2935,6 @@ const copyReportForEmail = (record) => {
                   return (
                     <>
                       <button 
-                        onClick={() => { setActiveSubTab('pedido-materiales'); setSelectedRecord(null); }}
-                        className={`sub-tab-btn ${activeSubTab === 'pedido-materiales' ? 'active' : ''}`}
-                        style={btnStyle}
-                      >
-                        <ShoppingCart size={24} />
-                        <span className="sub-tab-label">Pedidos de materiales a proveedores</span>
-                        {activeSubTab === 'pedido-materiales' && <motion.div layoutId="active-pill" className="sub-tab-active-bg" />}
-                      </button>
-                      <button 
                         onClick={() => { setActiveSubTab('planificador-recorrido'); setSelectedRecord(null); }}
                         className={`sub-tab-btn ${activeSubTab === 'planificador-recorrido' ? 'active' : ''}`}
                         style={btnStyle}
@@ -2918,6 +2942,15 @@ const copyReportForEmail = (record) => {
                         <Map size={24} />
                         <span className="sub-tab-label">Viajes de camiones</span>
                         {activeSubTab === 'planificador-recorrido' && <motion.div layoutId="active-pill" className="sub-tab-active-bg" />}
+                      </button>
+                      <button 
+                        onClick={() => { setActiveSubTab('pedido-materiales'); setSelectedRecord(null); }}
+                        className={`sub-tab-btn ${activeSubTab === 'pedido-materiales' ? 'active' : ''}`}
+                        style={btnStyle}
+                      >
+                        <ShoppingCart size={24} />
+                        <span className="sub-tab-label">Pedidos de materiales a proveedores</span>
+                        {activeSubTab === 'pedido-materiales' && <motion.div layoutId="active-pill" className="sub-tab-active-bg" />}
                       </button>
                       <button 
                         onClick={() => { setActiveSubTab('novedades-turno'); setSelectedRecord(null); }}

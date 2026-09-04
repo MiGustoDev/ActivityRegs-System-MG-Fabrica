@@ -1390,6 +1390,33 @@ const DIRECCIONES_OVERRIDE_KEY = "migusto_direcciones_override_v1";
 let config = { locales:[], productos:[] };
 let direccionesOverride = {};
 
+// Sincronizador automático con Supabase en la nube
+const originalLocalStorageSetItem = localStorage.setItem.bind(localStorage);
+localStorage.setItem = function(key, value) {
+  originalLocalStorageSetItem(key, value);
+  if (key && (key.startsWith('migusto_') || key.includes('config') || key.includes('historico') || key.includes('borrador'))) {
+    try {
+      window.parent.postMessage({
+        type: 'SAVE_PLANNER_STATE_TO_SUPABASE',
+        key: key,
+        payload: value
+      }, '*');
+    } catch(e){}
+  }
+};
+
+window.addEventListener('message', (event) => {
+  if (event.data && event.data.type === 'SUPABASE_PLANNER_STATES_UPDATED') {
+    try {
+      loadConfig();
+      loadDireccionesOverride();
+      if (typeof cargarAuditoria === 'function') cargarAuditoria();
+      if (typeof render === 'function') render();
+      if (typeof renderHistorico === 'function') renderHistorico();
+    } catch(e){}
+  }
+});
+
 function loadConfig() {
   try {
     const s = localStorage.getItem(CONFIG_KEY);
