@@ -56,6 +56,65 @@ const cleanHtmlContent = planificadorHtmlRaw
         border-color: #047857 !important;
         color: #ffffff !important;
       }
+      .dropdown-menu {
+        background-color: #14171a !important;
+        border: 1px solid #262626 !important;
+        border-radius: 10px !important;
+        padding: 8px !important;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.6) !important;
+      }
+      .dropdown-menu .btn, 
+      .dropdown-menu .btn-ghost, 
+      .dropdown-menu label.btn-ghost, 
+      .dropdown-menu .btn-amber, 
+      .dropdown-menu label.btn-amber {
+        width: 100% !important;
+        justify-content: flex-start !important;
+        background-color: #171717 !important;
+        border: 1px solid #262626 !important;
+        color: #a3a3a3 !important;
+        padding: 0.5rem 0.75rem !important;
+        border-radius: 6px !important;
+        font-size: 0.825rem !important;
+        font-weight: 600 !important;
+        margin-bottom: 4px !important;
+        box-sizing: border-box !important;
+        display: flex !important;
+        align-items: center !important;
+        gap: 0.5rem !important;
+        transition: all 0.2s ease !important;
+      }
+      .dropdown-menu .btn:hover, 
+      .dropdown-menu .btn-ghost:hover, 
+      .dropdown-menu label.btn-ghost:hover, 
+      .dropdown-menu .btn-amber:hover, 
+      .dropdown-menu label.btn-amber:hover {
+        background-color: #262626 !important;
+        color: #ffffff !important;
+        border-color: #333333 !important;
+      }
+      .dropdown-menu .btn-primary {
+        width: 100% !important;
+        justify-content: flex-start !important;
+        background-color: #059669 !important;
+        color: #ffffff !important;
+        border: 1px solid #059669 !important;
+        padding: 0.5rem 0.75rem !important;
+        border-radius: 6px !important;
+        font-size: 0.825rem !important;
+        font-weight: 700 !important;
+        margin-bottom: 4px !important;
+        box-sizing: border-box !important;
+        display: flex !important;
+        align-items: center !important;
+        gap: 0.5rem !important;
+        transition: all 0.2s ease !important;
+      }
+      .dropdown-menu .btn-primary:hover {
+        background-color: #047857 !important;
+        border-color: #047857 !important;
+        color: #ffffff !important;
+      }
     </style></head>`
   );
 
