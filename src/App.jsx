@@ -4640,12 +4640,12 @@ const copyReportForEmail = (record) => {
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -10 }}
                 transition={{ duration: 0.2 }}
-                style={{ width: '100%', height: 'calc(100vh - 180px)', minHeight: '800px', borderRadius: '12px', overflow: 'hidden', boxShadow: '0 4px 20px rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.1)' }}
+                style={{ width: '100%', minHeight: '800px', background: 'transparent' }}
               >
                 <iframe
                   src={`${import.meta.env.BASE_URL}reporteOperacionalDeRomi.html`}
                   title="Reporte Operacional"
-                  style={{ width: '100%', height: '100%', border: 'none' }}
+                  style={{ width: '100%', height: 'calc(100vh - 180px)', minHeight: '800px', border: 'none', background: 'transparent' }}
                 />
               </motion.div>
             ) : (activeSubTab === 'mantis' || activeSector === 'mantenimiento') ? (
