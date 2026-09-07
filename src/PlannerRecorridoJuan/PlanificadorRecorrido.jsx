@@ -2,12 +2,22 @@ import React, { useEffect, useRef } from 'react';
 import planificadorHtmlRaw from './Nuevo/planificador migusto.html?raw';
 import { supabase } from '../supabase';
 
-// Inyectar ocultamiento visual de scrollbars permitiendo desplazamiento activo y mejorar botones
+// Inyectar ocultamiento visual de scrollbars e integración de fondo transparente con el módulo
 const cleanHtmlContent = planificadorHtmlRaw
   .replace('irA("planificacion");', 'irA("mapa");')
   .replace(
     '</head>',
     `<style>
+      :root {
+        --bg: transparent !important;
+        --panel: transparent !important;
+        --panel-2: rgba(255, 255, 255, 0.03) !important;
+        --border: rgba(255, 255, 255, 0.08) !important;
+        --border-soft: rgba(255, 255, 255, 0.05) !important;
+      }
+      html, body, .app-shell, .side, .topbar, .main-col, .riel {
+        background: transparent !important;
+      }
       html, body, * {
         scrollbar-width: none !important;
         -ms-overflow-style: none !important;
@@ -160,15 +170,12 @@ export default function PlanificadorRecorrido() {
       } catch(e){}
     }
 
-    // Siempre empujar la lista actualizada al iframe (incluso si está vacía) para limpiar o refrescar marcadores
     pushGpsToIframeWindow(list);
   };
 
   useEffect(() => {
-    // 1. Carga inicial GPS
     syncGps();
 
-    // 2. Suscripción por WebSocket en Tiempo Real para posiciones GPS
     let gpsChannel = null;
     if (supabase) {
       gpsChannel = supabase
@@ -179,7 +186,6 @@ export default function PlanificadorRecorrido() {
         .subscribe();
     }
 
-    // 3. Listener de mensajes desde el iframe para guardar planner_state a Supabase
     const handleIframeMessage = async (event) => {
       if (!event.data || !event.data.type) return;
       const { type, key, payload } = event.data;
@@ -212,7 +218,6 @@ export default function PlanificadorRecorrido() {
 
     window.addEventListener('message', handleIframeMessage);
 
-    // 4. Cargar todos los estados de planificación compartidos desde Supabase
     const syncPlannerStatesFromSupabase = async () => {
       if (!supabase) return;
       try {
@@ -239,7 +244,6 @@ export default function PlanificadorRecorrido() {
 
     syncPlannerStatesFromSupabase();
 
-    // 5. Suscripción Realtime a cambios de planificación creados por otros usuarios
     let stateChannel = null;
     if (supabase) {
       stateChannel = supabase
@@ -274,8 +278,7 @@ export default function PlanificadorRecorrido() {
           width: '100%',
           height: '100%',
           border: 'none',
-          borderRadius: '12px',
-          background: '#0d0f11',
+          background: 'transparent',
           scrollbarWidth: 'none',
           msOverflowStyle: 'none'
         }}
