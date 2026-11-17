@@ -72,6 +72,57 @@ Explora la experiencia visual del sistema. Una interfaz diseñada para la clarid
 
 ---
 
+## 🚀 Instalación y Puesta en Marcha
+
+Sigue estos pasos para clonar y ejecutar el entorno de desarrollo local:
+
+### 1. Prerrequisitos
+- [Node.js](https://nodejs.org/) (versión 18.0 o superior recomendada)
+- Gestor de paquetes: **pnpm** (recomendado) o **npm**
+
+### 2. Clonar el repositorio
+```bash
+git clone https://github.com/tu-usuario/MG.Orbital.git
+cd MG.Orbital
+```
+
+### 3. Instalar dependencias
+```bash
+# Con pnpm (recomendado)
+pnpm install
+
+# O con npm
+npm install
+```
+
+### 4. Variables de Entorno
+Crea o verifica el archivo `.env` en la raíz del proyecto con tus credenciales de Supabase:
+```env
+VITE_SUPABASE_URL=https://tu-proyecto.supabase.co
+VITE_SUPABASE_ANON_KEY=tu-anon-key-aqui
+```
+
+### 5. Iniciar el servidor de desarrollo
+```bash
+# Con pnpm
+pnpm dev
+
+# O con npm
+npm run dev
+```
+La aplicación estará disponible localmente en `http://localhost:5173`.
+
+### 6. Compilar para producción
+```bash
+# Con pnpm
+pnpm build
+
+# O con npm
+npm run build
+```
+
+---
+
 <div align="center">
   <p><i>Impulsando la excelencia operativa en Mi Gusto.</i></p>
   <p><b>Departamento de Sistemas © 2026</b></p>
